@@ -126,7 +126,7 @@ class VideoExportService {
     }
 
     // ── Phase 6: Get font path ──
-    final fontPath = await getFontPath(state.font.ffmpegFontFile);
+    final fontPath = await getFontPath(state.font.googleFontFamily);
 
     // ── Phase 7: Render video ──
     onProgress(const ExportProgress(

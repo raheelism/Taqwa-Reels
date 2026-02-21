@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/background_item.dart';
 
 /// Replace with your own Pixabay API key.
-const _kKey = 'YOUR_PIXABAY_API_KEY';
+const _kKey = '54668314-f82f212a8c835c5547884c861';
 
 class PixabayService {
   final _dio = Dio(BaseOptions(
