@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'core/theme/app_theme.dart';
+import 'screens/home/home_screen.dart';
 import 'screens/ayah_selection/ayah_selection_screen.dart';
 import 'screens/background/background_screen.dart';
 import 'screens/customize/customize_screen.dart';
@@ -9,22 +10,14 @@ import 'screens/preview_export/preview_export_screen.dart';
 final _router = GoRouter(
   initialLocation: '/',
   routes: [
+    GoRoute(path: '/', builder: (_, __) => const HomeScreen()),
     GoRoute(
-      path: '/',
+      path: '/quran-reels',
       builder: (_, __) => const AyahSelectionScreen(),
     ),
-    GoRoute(
-      path: '/background',
-      builder: (_, __) => const BackgroundScreen(),
-    ),
-    GoRoute(
-      path: '/customize',
-      builder: (_, __) => const CustomizeScreen(),
-    ),
-    GoRoute(
-      path: '/preview',
-      builder: (_, __) => const PreviewExportScreen(),
-    ),
+    GoRoute(path: '/background', builder: (_, __) => const BackgroundScreen()),
+    GoRoute(path: '/customize', builder: (_, __) => const CustomizeScreen()),
+    GoRoute(path: '/preview', builder: (_, __) => const PreviewExportScreen()),
   ],
 );
 
