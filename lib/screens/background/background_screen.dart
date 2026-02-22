@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../data/constants/backgrounds.dart';
 import '../../data/models/background_item.dart';
 import '../../data/services/pixabay_service.dart';
 import '../../state/reel_provider.dart';
+import '../shared/step_indicator.dart';
+import 'widgets/background_grid_item.dart';
+import 'widgets/category_chips.dart';
 
 class BackgroundScreen extends ConsumerStatefulWidget {
   const BackgroundScreen({super.key});
@@ -19,31 +21,24 @@ class BackgroundScreen extends ConsumerStatefulWidget {
 
 class _BackgroundScreenState extends ConsumerState<BackgroundScreen>
     with SingleTickerProviderStateMixin {
-  late TabController _tabCtrl;
+  late final TabController _tabCtrl;
+  final _imgScroll = ScrollController();
+  final _vidScroll = ScrollController();
+
   String _selectedCategory = kBackgroundCategories.first;
-
-  // Image state
   List<BackgroundItem> _images = [];
-  bool _loadingImages = false;
-  int _imagePage = 1;
-
-  // Video state
   List<BackgroundItem> _videos = [];
-  bool _loadingVideos = false;
-  int _videoPage = 1;
-
-  final _imageScrollCtrl = ScrollController();
-  final _videoScrollCtrl = ScrollController();
+  bool _loadingImages = true;
+  bool _loadingVideos = true;
+  int _imgPage = 1;
+  int _vidPage = 1;
 
   @override
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: 2, vsync: this);
-    _tabCtrl.addListener(() {
-      if (!_tabCtrl.indexIsChanging) setState(() {});
-    });
-    _imageScrollCtrl.addListener(_onImageScroll);
-    _videoScrollCtrl.addListener(_onVideoScroll);
+    _imgScroll.addListener(_onImageScroll);
+    _vidScroll.addListener(_onVideoScroll);
     _loadImages();
     _loadVideos();
   }
@@ -51,42 +46,42 @@ class _BackgroundScreenState extends ConsumerState<BackgroundScreen>
   @override
   void dispose() {
     _tabCtrl.dispose();
-    _imageScrollCtrl.dispose();
-    _videoScrollCtrl.dispose();
+    _imgScroll.dispose();
+    _vidScroll.dispose();
     super.dispose();
   }
 
+  // ── Infinite scroll ──
+
   void _onImageScroll() {
-    if (_imageScrollCtrl.position.pixels >=
-            _imageScrollCtrl.position.maxScrollExtent - 200 &&
-        !_loadingImages) {
-      _imagePage++;
+    if (_imgScroll.position.pixels >=
+        _imgScroll.position.maxScrollExtent - 200) {
       _loadImages(append: true);
     }
   }
 
   void _onVideoScroll() {
-    if (_videoScrollCtrl.position.pixels >=
-            _videoScrollCtrl.position.maxScrollExtent - 200 &&
-        !_loadingVideos) {
-      _videoPage++;
+    if (_vidScroll.position.pixels >=
+        _vidScroll.position.maxScrollExtent - 200) {
       _loadVideos(append: true);
     }
   }
 
+  // ── Data ──
+
   Future<void> _loadImages({bool append = false}) async {
+    if (append && !_loadingImages) {
+      _imgPage++;
+    }
     setState(() => _loadingImages = true);
     try {
-      final items = await ref
-          .read(pixabayProvider)
-          .searchImages(_selectedCategory, page: _imagePage);
+      final items = await PixabayService().searchImages(
+        _selectedCategory,
+        page: _imgPage,
+      );
       if (!mounted) return;
       setState(() {
-        if (append) {
-          _images.addAll(items);
-        } else {
-          _images = items;
-        }
+        _images = append ? [..._images, ...items] : items;
         _loadingImages = false;
       });
     } catch (_) {
@@ -95,18 +90,18 @@ class _BackgroundScreenState extends ConsumerState<BackgroundScreen>
   }
 
   Future<void> _loadVideos({bool append = false}) async {
+    if (append && !_loadingVideos) {
+      _vidPage++;
+    }
     setState(() => _loadingVideos = true);
     try {
-      final items = await ref
-          .read(pixabayProvider)
-          .searchVideos(_selectedCategory, page: _videoPage);
+      final items = await PixabayService().searchVideos(
+        _selectedCategory,
+        page: _vidPage,
+      );
       if (!mounted) return;
       setState(() {
-        if (append) {
-          _videos.addAll(items);
-        } else {
-          _videos = items;
-        }
+        _videos = append ? [..._videos, ...items] : items;
         _loadingVideos = false;
       });
     } catch (_) {
@@ -114,11 +109,11 @@ class _BackgroundScreenState extends ConsumerState<BackgroundScreen>
     }
   }
 
-  void _onCategoryChanged(String category) {
+  void _onCategoryChanged(String cat) {
     setState(() {
-      _selectedCategory = category;
-      _imagePage = 1;
-      _videoPage = 1;
+      _selectedCategory = cat;
+      _imgPage = 1;
+      _vidPage = 1;
       _images = [];
       _videos = [];
     });
@@ -128,13 +123,14 @@ class _BackgroundScreenState extends ConsumerState<BackgroundScreen>
 
   void _selectBackground(BackgroundItem item) {
     ref.read(reelProvider.notifier).setBackground(item);
-    setState(() {}); // refresh selection highlight
+    setState(() {});
   }
+
+  // ── Build ──
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(reelProvider);
-    final selectedBg = state.background;
+    final selectedBg = ref.watch(reelProvider).background;
 
     return Scaffold(
       appBar: AppBar(
@@ -147,10 +143,9 @@ class _BackgroundScreenState extends ConsumerState<BackgroundScreen>
       body: SafeArea(
         child: Column(
           children: [
-            // Step indicator
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-              child: _buildStepIndicator(2),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+              child: StepIndicator(current: 2),
             ),
 
             // Tab bar
@@ -185,52 +180,10 @@ class _BackgroundScreenState extends ConsumerState<BackgroundScreen>
             const SizedBox(height: AppSpacing.sm),
 
             // Category chips
-            SizedBox(
-              height: 38,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                itemCount: kBackgroundCategories.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (context, i) {
-                  final cat = kBackgroundCategories[i];
-                  final isSelected = cat == _selectedCategory;
-                  return GestureDetector(
-                    onTap: () => _onCategoryChanged(cat),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppColors.primary
-                            : AppColors.bgCard,
-                        borderRadius: BorderRadius.circular(
-                          AppSpacing.radiusSm,
-                        ),
-                        border: Border.all(
-                          color: isSelected
-                              ? AppColors.primary
-                              : AppColors.bgCardLight,
-                        ),
-                      ),
-                      child: Text(
-                        cat[0].toUpperCase() + cat.substring(1),
-                        style: TextStyle(
-                          color: isSelected
-                              ? AppColors.bg
-                              : AppColors.textSecondary,
-                          fontSize: 13,
-                          fontWeight: isSelected
-                              ? FontWeight.w600
-                              : FontWeight.normal,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
+            CategoryChips(
+              categories: kBackgroundCategories,
+              selected: _selectedCategory,
+              onChanged: _onCategoryChanged,
             ),
             const SizedBox(height: AppSpacing.sm),
 
@@ -239,13 +192,25 @@ class _BackgroundScreenState extends ConsumerState<BackgroundScreen>
               child: TabBarView(
                 controller: _tabCtrl,
                 children: [
-                  _buildImageGrid(selectedBg),
-                  _buildVideoGrid(selectedBg),
+                  _buildGrid(
+                    _images,
+                    _loadingImages,
+                    _imgScroll,
+                    selectedBg,
+                    isVideo: false,
+                  ),
+                  _buildGrid(
+                    _videos,
+                    _loadingVideos,
+                    _vidScroll,
+                    selectedBg,
+                    isVideo: true,
+                  ),
                 ],
               ),
             ),
 
-            // Next button
+            // Next
             if (selectedBg != null)
               Padding(
                 padding: const EdgeInsets.all(AppSpacing.md),
@@ -267,204 +232,48 @@ class _BackgroundScreenState extends ConsumerState<BackgroundScreen>
     );
   }
 
-  Widget _buildImageGrid(BackgroundItem? selectedBg) {
-    if (_images.isEmpty && _loadingImages) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      );
-    }
-    if (_images.isEmpty) {
-      return Center(
-        child: Text(
-          'No images found',
-          style: GoogleFonts.outfit(color: AppColors.textMuted),
-        ),
-      );
-    }
-
-    return GridView.builder(
-      controller: _imageScrollCtrl,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 10,
-        crossAxisSpacing: 10,
-        childAspectRatio: 0.65,
-      ),
-      itemCount: _images.length + (_loadingImages ? 1 : 0),
-      itemBuilder: (context, i) {
-        if (i >= _images.length) {
-          return const Center(
-            child: CircularProgressIndicator(color: AppColors.primary),
-          );
-        }
-        final item = _images[i];
-        final isSelected = selectedBg?.id == item.id;
-        return _buildGridItem(item, isSelected);
-      },
-    );
-  }
-
-  Widget _buildVideoGrid(BackgroundItem? selectedBg) {
-    if (_videos.isEmpty && _loadingVideos) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      );
-    }
-    if (_videos.isEmpty) {
-      return Center(
-        child: Text(
-          'No videos found',
-          style: GoogleFonts.outfit(color: AppColors.textMuted),
-        ),
-      );
-    }
-
-    return GridView.builder(
-      controller: _videoScrollCtrl,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 10,
-        crossAxisSpacing: 10,
-        childAspectRatio: 0.65,
-      ),
-      itemCount: _videos.length + (_loadingVideos ? 1 : 0),
-      itemBuilder: (context, i) {
-        if (i >= _videos.length) {
-          return const Center(
-            child: CircularProgressIndicator(color: AppColors.primary),
-          );
-        }
-        final item = _videos[i];
-        final isSelected = selectedBg?.id == item.id;
-        return _buildGridItem(item, isSelected, isVideo: true);
-      },
-    );
-  }
-
-  Widget _buildGridItem(
-    BackgroundItem item,
-    bool isSelected, {
-    bool isVideo = false,
+  Widget _buildGrid(
+    List<BackgroundItem> items,
+    bool loading,
+    ScrollController scroll,
+    BackgroundItem? selectedBg, {
+    required bool isVideo,
   }) {
-    return GestureDetector(
-      onTap: () => _selectBackground(item),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : Colors.transparent,
-            width: isSelected ? 2.5 : 0,
-          ),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(
-            isSelected ? AppSpacing.radiusMd - 1 : AppSpacing.radiusMd,
-          ),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              CachedNetworkImage(
-                imageUrl: item.previewUrl,
-                fit: BoxFit.cover,
-                placeholder: (_, __) => Container(
-                  color: AppColors.bgCard,
-                  child: const Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.primary,
-                      strokeWidth: 2,
-                    ),
-                  ),
-                ),
-                errorWidget: (_, __, ___) => Container(
-                  color: AppColors.bgCard,
-                  child: const Icon(
-                    Icons.broken_image,
-                    color: AppColors.textMuted,
-                  ),
-                ),
-              ),
-
-              // Video badge
-              if (isVideo)
-                Positioned(
-                  top: 6,
-                  right: 6,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.videocam_rounded,
-                          color: Colors.white,
-                          size: 12,
-                        ),
-                        SizedBox(width: 3),
-                        Text(
-                          'Video',
-                          style: TextStyle(color: Colors.white, fontSize: 10),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-              // Selection checkmark
-              if (isSelected)
-                Positioned(
-                  top: 6,
-                  left: 6,
-                  child: Container(
-                    width: 24,
-                    height: 24,
-                    decoration: const BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check,
-                      color: AppColors.bg,
-                      size: 16,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
+    if (loading && items.isEmpty) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
+    return GridView.builder(
+      controller: scroll,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childAspectRatio: 9 / 16,
       ),
-    );
-  }
-
-  Widget _buildStepIndicator(int current) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(4, (i) {
-        final isActive = i < current;
-        final isCurrent = i == current - 1;
-        return Row(
-          children: [
-            Container(
-              width: isCurrent ? 28 : 10,
-              height: 10,
-              decoration: BoxDecoration(
-                color: isActive ? AppColors.primary : AppColors.bgCardLight,
-                borderRadius: BorderRadius.circular(5),
+      itemCount: items.length + (loading ? 1 : 0),
+      itemBuilder: (_, i) {
+        if (i >= items.length) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: CircularProgressIndicator(
+                color: AppColors.primary,
+                strokeWidth: 2,
               ),
             ),
-            if (i < 3) const SizedBox(width: 6),
-          ],
+          );
+        }
+        final item = items[i];
+        return BackgroundGridItem(
+          item: item,
+          isSelected: selectedBg?.id == item.id,
+          isVideo: isVideo,
+          onTap: () => _selectBackground(item),
         );
-      }),
+      },
     );
   }
 }
