@@ -100,7 +100,7 @@ class _SlideCard extends StatelessWidget {
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                    isPlaying ? Icons.stop_rounded : Icons.play_arrow_rounded,
                     size: 16,
                     color: isPlaying ? AppColors.bg : AppColors.textSecondary,
                   ),
