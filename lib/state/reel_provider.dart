@@ -39,9 +39,36 @@ List<ReelSlide> buildSlides(
     );
   }
 
-  slides.addAll(
-    ayahs.expand((a) => _split(a, surahName, showAyahNumber)).toList(),
-  );
+  for (final ayah in ayahs) {
+    var processedAyah = ayah;
+
+    // AlQuran Cloud API prepends Bismillah to Ayah 1 of all surahs except Fatihah (1) and Tawbah (9).
+    // We strip it from the Arabic text here so it doesn't merge with the actual Ayah 1.
+    if (ayah.surahNumber != 1 &&
+        ayah.surahNumber != 9 &&
+        ayah.ayahNumber == 1) {
+      final arWords = ayah.arabic.trim().split(RegExp(r'\s+'));
+      // Bismillah is exactly 4 words: بسم الله الرحمن الرحيم
+      if (arWords.length > 4) {
+        // Basic check if the first word contains ب, س, م
+        if (arWords[0].contains('ب') &&
+            arWords[0].contains('س') &&
+            arWords[0].contains('م')) {
+          processedAyah = AyahWithTranslation(
+            surahNumber: ayah.surahNumber,
+            ayahNumber: ayah.ayahNumber,
+            surahName: ayah.surahName,
+            surahEnglishName: ayah.surahEnglishName,
+            arabic: arWords.sublist(4).join(' '),
+            translation: ayah.translation,
+          );
+        }
+      }
+    }
+
+    slides.addAll(_split(processedAyah, surahName, showAyahNumber));
+  }
+
   return slides;
 }
 
