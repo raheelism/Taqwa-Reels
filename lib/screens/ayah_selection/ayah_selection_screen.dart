@@ -215,11 +215,15 @@ class _AyahSelectionScreenState extends ConsumerState<AyahSelectionScreen> {
     );
     try {
       await _audioPlayer.setUrl(url);
-      await _audioPlayer.play();
+
+      // Update UI immediately to show the "Stop" icon while buffering/playing
       setState(() {
         _isPlaying = true;
         _playingAyah = ayahNumber;
       });
+
+      await _audioPlayer.play();
+
       _audioPlayer.playerStateStream.listen((ps) {
         if (ps.processingState == ProcessingState.completed) {
           if (mounted) {
@@ -232,6 +236,10 @@ class _AyahSelectionScreenState extends ConsumerState<AyahSelectionScreen> {
       });
     } catch (_) {
       if (mounted) {
+        setState(() {
+          _isPlaying = false;
+          _playingAyah = null;
+        });
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Could not load audio')));
