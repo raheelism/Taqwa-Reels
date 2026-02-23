@@ -165,7 +165,12 @@ class _AyahSelectionScreenState extends ConsumerState<AyahSelectionScreen> {
             state.translation.edition,
           );
       if (!mounted) return;
-      final slides = buildSlides(ayahs, _selectedSurah!.englishName);
+      final slides = buildSlides(
+        ayahs,
+        _selectedSurah!.englishName,
+        includeBismillah: ref.read(reelProvider).includeBismillah,
+        showAyahNumber: ref.read(reelProvider).showAyahNumber,
+      );
       ref.read(reelProvider.notifier).setAyahRange(from, to, slides);
       setState(() => _loadingAyahs = false);
     } catch (e) {
@@ -258,7 +263,7 @@ class _AyahSelectionScreenState extends ConsumerState<AyahSelectionScreen> {
                     loading: _loadingSurahs,
                     error: _surahError,
                     selected: _selectedSurah,
-                    height: (screenH * 0.35).clamp(180, 400),
+                    height: (screenH * 0.30).clamp(180, 400),
                     onRetry: () {
                       setState(() {
                         _loadingSurahs = true;

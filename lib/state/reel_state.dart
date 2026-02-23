@@ -23,12 +23,15 @@ class ReelState {
 
   // Step 3 — Customization
   final FontOption font;
-  final String textColor;       // Hex e.g. '#FFFFFF'
-  final double textPosition;    // 0.0=top  0.5=center  1.0=bottom
+  final String textColor; // Hex e.g. '#FFFFFF'
+  final double textPosition; // 0.0=top  0.5=center  1.0=bottom
   final double fontSize;
   final double dimOpacity;
   final bool showTranslation;
   final bool showArabicShadow;
+  final bool includeBismillah;
+  final bool showAyahNumber;
+  final String watermarkText;
 
   // Export options
   final ExportOptions exportOptions;
@@ -50,14 +53,17 @@ class ReelState {
     this.dimOpacity = 0.4,
     this.showTranslation = true,
     this.showArabicShadow = true,
+    this.includeBismillah = false,
+    this.showAyahNumber = true,
+    this.watermarkText = 'TaqwaReels',
     this.exportOptions = const ExportOptions(),
   });
 
   factory ReelState.initial() => ReelState(
-        reciter: kReciters.first,
-        translation: kTranslations.first,
-        font: kFontOptions.first,
-      );
+    reciter: kReciters.first,
+    translation: kTranslations.first,
+    font: kFontOptions.first,
+  );
 
   ReelState copyWith({
     int? surahNumber,
@@ -76,25 +82,30 @@ class ReelState {
     double? dimOpacity,
     bool? showTranslation,
     bool? showArabicShadow,
+    bool? includeBismillah,
+    bool? showAyahNumber,
+    String? watermarkText,
     ExportOptions? exportOptions,
-  }) =>
-      ReelState(
-        surahNumber: surahNumber ?? this.surahNumber,
-        surahName: surahName ?? this.surahName,
-        fromAyah: fromAyah ?? this.fromAyah,
-        toAyah: toAyah ?? this.toAyah,
-        slides: slides ?? this.slides,
-        currentSlideIndex: currentSlideIndex ?? this.currentSlideIndex,
-        reciter: reciter ?? this.reciter,
-        translation: translation ?? this.translation,
-        background: background ?? this.background,
-        font: font ?? this.font,
-        textColor: textColor ?? this.textColor,
-        textPosition: textPosition ?? this.textPosition,
-        fontSize: fontSize ?? this.fontSize,
-        dimOpacity: dimOpacity ?? this.dimOpacity,
-        showTranslation: showTranslation ?? this.showTranslation,
-        showArabicShadow: showArabicShadow ?? this.showArabicShadow,
-        exportOptions: exportOptions ?? this.exportOptions,
-      );
+  }) => ReelState(
+    surahNumber: surahNumber ?? this.surahNumber,
+    surahName: surahName ?? this.surahName,
+    fromAyah: fromAyah ?? this.fromAyah,
+    toAyah: toAyah ?? this.toAyah,
+    slides: slides ?? this.slides,
+    currentSlideIndex: currentSlideIndex ?? this.currentSlideIndex,
+    reciter: reciter ?? this.reciter,
+    translation: translation ?? this.translation,
+    background: background ?? this.background,
+    font: font ?? this.font,
+    textColor: textColor ?? this.textColor,
+    textPosition: textPosition ?? this.textPosition,
+    fontSize: fontSize ?? this.fontSize,
+    dimOpacity: dimOpacity ?? this.dimOpacity,
+    showTranslation: showTranslation ?? this.showTranslation,
+    showArabicShadow: showArabicShadow ?? this.showArabicShadow,
+    includeBismillah: includeBismillah ?? this.includeBismillah,
+    showAyahNumber: showAyahNumber ?? this.showAyahNumber,
+    watermarkText: watermarkText ?? this.watermarkText,
+    exportOptions: exportOptions ?? this.exportOptions,
+  );
 }

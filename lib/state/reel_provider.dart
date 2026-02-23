@@ -7,20 +7,58 @@ import '../data/models/ayah.dart';
 
 const _kMaxWords = 12;
 
+/// Helper to convert a number to Arabic numerals and wrap it in the ayah end symbol ۝
+String _formatAyahNumber(int number) {
+  const digits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+  final arabicNumber = number
+      .toString()
+      .split('')
+      .map((d) => digits[int.parse(d)])
+      .join('');
+  return ' ۝$arabicNumber';
+}
+
 List<ReelSlide> buildSlides(
   List<AyahWithTranslation> ayahs,
-  String surahName,
-) =>
-    ayahs.expand((a) => _split(a, surahName)).toList();
+  String surahName, {
+  bool includeBismillah = false,
+  bool showAyahNumber = true,
+}) {
+  final slides = <ReelSlide>[];
 
-List<ReelSlide> _split(AyahWithTranslation ayah, String surahName) {
+  if (includeBismillah) {
+    slides.add(
+      ReelSlide(
+        arabicText: 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ',
+        translationText:
+            'In the name of Allah, the Entirely Merciful, the Especially Merciful.',
+        ayahNumber: 0,
+        slideLabel: 'Bismillah',
+        isPartial: false,
+      ),
+    );
+  }
+
+  slides.addAll(
+    ayahs.expand((a) => _split(a, surahName, showAyahNumber)).toList(),
+  );
+  return slides;
+}
+
+List<ReelSlide> _split(
+  AyahWithTranslation ayah,
+  String surahName,
+  bool showAyahNumber,
+) {
   final arWords = ayah.arabic.trim().split(RegExp(r'\s+'));
   final trWords = ayah.translation.trim().split(RegExp(r'\s+'));
 
   if (arWords.length <= _kMaxWords) {
     return [
       ReelSlide(
-        arabicText: ayah.arabic,
+        arabicText: showAyahNumber
+            ? '${ayah.arabic}${_formatAyahNumber(ayah.ayahNumber)}'
+            : ayah.arabic,
         translationText: ayah.translation,
         ayahNumber: ayah.ayahNumber,
         slideLabel: '$surahName ${ayah.surahNumber}:${ayah.ayahNumber}',
@@ -33,12 +71,23 @@ List<ReelSlide> _split(AyahWithTranslation ayah, String surahName) {
   return List.generate(parts, (p) {
     final s = p * _kMaxWords;
     final e = (s + _kMaxWords).clamp(0, arWords.length);
-    final ts =
-        ((s / arWords.length) * trWords.length).round().clamp(0, trWords.length);
-    final te =
-        ((e / arWords.length) * trWords.length).round().clamp(0, trWords.length);
+    final ts = ((s / arWords.length) * trWords.length).round().clamp(
+      0,
+      trWords.length,
+    );
+    final te = ((e / arWords.length) * trWords.length).round().clamp(
+      0,
+      trWords.length,
+    );
+
+    String arText = arWords.sublist(s, e).join(' ');
+    // Only append the ayah number symbol to the very last segment of the ayah
+    if (showAyahNumber && p == parts - 1) {
+      arText += _formatAyahNumber(ayah.ayahNumber);
+    }
+
     return ReelSlide(
-      arabicText: arWords.sublist(s, e).join(' '),
+      arabicText: arText,
       translationText: trWords.sublist(ts, te).join(' '),
       ayahNumber: ayah.ayahNumber,
       slideLabel:
@@ -54,13 +103,13 @@ class ReelNotifier extends StateNotifier<ReelState> {
   ReelNotifier() : super(ReelState.initial());
 
   void setSurah(int n, String name) => state = state.copyWith(
-        surahNumber: n,
-        surahName: name,
-        slides: [],
-        fromAyah: null,
-        toAyah: null,
-        currentSlideIndex: 0,
-      );
+    surahNumber: n,
+    surahName: name,
+    slides: [],
+    fromAyah: null,
+    toAyah: null,
+    currentSlideIndex: 0,
+  );
 
   void setAyahRange(int from, int to, List<ReelSlide> slides) =>
       state = state.copyWith(
@@ -71,8 +120,8 @@ class ReelNotifier extends StateNotifier<ReelState> {
       );
 
   void setCurrentSlide(int i) => state = state.copyWith(
-        currentSlideIndex: i.clamp(0, state.slides.length - 1),
-      );
+    currentSlideIndex: i.clamp(0, state.slides.length - 1),
+  );
 
   void nextSlide() => setCurrentSlide(state.currentSlideIndex + 1);
   void prevSlide() => setCurrentSlide(state.currentSlideIndex - 1);
@@ -87,6 +136,9 @@ class ReelNotifier extends StateNotifier<ReelState> {
   void setDimOpacity(o) => state = state.copyWith(dimOpacity: o);
   void setShowTranslation(v) => state = state.copyWith(showTranslation: v);
   void setShowShadow(v) => state = state.copyWith(showArabicShadow: v);
+  void setIncludeBismillah(v) => state = state.copyWith(includeBismillah: v);
+  void setShowAyahNumber(v) => state = state.copyWith(showAyahNumber: v);
+  void setWatermarkText(v) => state = state.copyWith(watermarkText: v);
   void setExportOptions(o) => state = state.copyWith(exportOptions: o);
   void reset() => state = ReelState.initial();
 }

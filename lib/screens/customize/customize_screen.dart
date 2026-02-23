@@ -12,7 +12,9 @@ import 'widgets/font_picker_sheet.dart';
 import 'widgets/style_controls.dart';
 
 class CustomizeScreen extends ConsumerWidget {
-  const CustomizeScreen({super.key});
+  CustomizeScreen({super.key});
+
+  final _watermarkController = TextEditingController();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -44,6 +46,33 @@ class CustomizeScreen extends ConsumerWidget {
                     // Live Preview
                     const Center(
                       child: SizedBox(height: 340, child: ReelPreviewCard()),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // Watermark Input
+                    _label('Watermark Text'),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _watermarkController
+                        ..text = state.watermarkText,
+                      style: const TextStyle(color: AppColors.textPrimary),
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: AppColors.bgCardLight,
+                        hintText: 'e.g. @YourPageName',
+                        hintStyle: const TextStyle(color: AppColors.textMuted),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            AppSpacing.radiusMd,
+                          ),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                      ),
+                      onChanged: (v) => notifier.setWatermarkText(v),
                     ),
                     const SizedBox(height: AppSpacing.lg),
 
@@ -176,6 +205,52 @@ class CustomizeScreen extends ConsumerWidget {
                             value: state.showArabicShadow,
                             activeTrackColor: AppColors.primary,
                             onChanged: (v) => notifier.setShowShadow(v),
+                          ),
+                          const Divider(
+                            height: 1,
+                            color: AppColors.bgCardLight,
+                          ),
+                          SwitchListTile(
+                            title: const Text(
+                              'Show Bismillah Slide',
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 14,
+                              ),
+                            ),
+                            subtitle: const Text(
+                              'Add Bismillah at the start of video',
+                              style: TextStyle(
+                                color: AppColors.textMuted,
+                                fontSize: 12,
+                              ),
+                            ),
+                            value: state.includeBismillah,
+                            activeTrackColor: AppColors.primary,
+                            onChanged: (v) => notifier.setIncludeBismillah(v),
+                          ),
+                          const Divider(
+                            height: 1,
+                            color: AppColors.bgCardLight,
+                          ),
+                          SwitchListTile(
+                            title: const Text(
+                              'Show Ayah Numbers',
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 14,
+                              ),
+                            ),
+                            subtitle: const Text(
+                              'Display ۝ symbols with numbers',
+                              style: TextStyle(
+                                color: AppColors.textMuted,
+                                fontSize: 12,
+                              ),
+                            ),
+                            value: state.showAyahNumber,
+                            activeTrackColor: AppColors.primary,
+                            onChanged: (v) => notifier.setShowAyahNumber(v),
                           ),
                         ],
                       ),

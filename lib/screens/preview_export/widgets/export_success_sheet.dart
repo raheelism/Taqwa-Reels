@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:video_player/video_player.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../state/reel_provider.dart';
@@ -15,12 +17,58 @@ void showExportSuccessSheet(
 ) {
   showModalBottomSheet(
     context: context,
+    isScrollControlled: true,
     backgroundColor: AppColors.bgCard,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (_) => Padding(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+    builder: (_) => _SuccessSheetContent(path: exportedPath, ref: ref),
+  );
+}
+
+class _SuccessSheetContent extends StatefulWidget {
+  final String? path;
+  final WidgetRef ref;
+
+  const _SuccessSheetContent({required this.path, required this.ref});
+
+  @override
+  State<_SuccessSheetContent> createState() => _SuccessSheetContentState();
+}
+
+class _SuccessSheetContentState extends State<_SuccessSheetContent> {
+  VideoPlayerController? _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.path != null) {
+      _controller = VideoPlayerController.file(File(widget.path!))
+        ..initialize().then((_) {
+          if (mounted) {
+            setState(() {});
+            _controller!.setLooping(true);
+            _controller!.play();
+          }
+        });
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.lg,
+        MediaQuery.of(context).padding.bottom + AppSpacing.md,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -55,14 +103,34 @@ void showExportSuccessSheet(
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
+
+          // Video Player
+          if (_controller != null && _controller!.value.isInitialized)
+            Container(
+              height: 280,
+              decoration: BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.bgCardLight, width: 2),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: AspectRatio(
+                  aspectRatio: _controller!.value.aspectRatio,
+                  child: VideoPlayer(_controller!),
+                ),
+              ),
+            ),
+          if (_controller != null && _controller!.value.isInitialized)
+            const SizedBox(height: AppSpacing.lg),
+
           Row(
             children: [
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () async {
-                    Navigator.pop(context);
-                    if (exportedPath != null) {
-                      await Share.shareXFiles([XFile(exportedPath)]);
+                    if (widget.path != null) {
+                      await Share.shareXFiles([XFile(widget.path!)]);
                     }
                   },
                   icon: const Icon(
@@ -87,7 +155,7 @@ void showExportSuccessSheet(
                 child: ElevatedButton.icon(
                   onPressed: () {
                     Navigator.pop(context);
-                    ref.read(reelProvider.notifier).reset();
+                    widget.ref.read(reelProvider.notifier).reset();
                     context.go('/');
                   },
                   icon: const Icon(Icons.home_rounded),
@@ -102,6 +170,6 @@ void showExportSuccessSheet(
           const SizedBox(height: AppSpacing.sm),
         ],
       ),
-    ),
-  );
+    );
+  }
 }

@@ -81,63 +81,86 @@ class ReelPreviewCard extends ConsumerWidget {
               color: Colors.black.withAlpha((state.dimOpacity * 255).round()),
             ),
 
-            // Positioned text
+            // Positioned text with ScrollView to prevent UI overflow
             Align(
               alignment: Alignment(0, (yFrac * 2) - 1),
               child: Padding(
                 padding: const EdgeInsets.all(20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Arabic text
-                    Text(
-                      slide.arabicText,
-                      textDirection: TextDirection.rtl,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.getFont(
-                        state.font.googleFontFamily,
-                        fontSize: state.fontSize,
-                        color: textColor,
-                        height: 1.8,
-                        shadows: state.showArabicShadow
-                            ? [
-                                const Shadow(
-                                  blurRadius: 8,
-                                  color: Colors.black87,
-                                ),
-                              ]
-                            : null,
-                      ),
-                    ),
-
-                    // Translation
-                    if (state.showTranslation) ...[
-                      const SizedBox(height: 12),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Arabic text
                       Text(
-                        slide.translationText,
+                        slide.arabicText,
+                        textDirection: TextDirection.rtl,
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.outfit(
-                          fontSize: state.fontSize * 0.52,
-                          color: textColor.withAlpha(217),
-                          fontStyle: FontStyle.italic,
+                        style: GoogleFonts.getFont(
+                          state.font.googleFontFamily,
+                          fontSize: state.fontSize,
+                          color: textColor,
+                          height: 1.8,
+                          shadows: state.showArabicShadow
+                              ? [
+                                  const Shadow(
+                                    blurRadius: 8,
+                                    color: Colors.black87,
+                                  ),
+                                ]
+                              : null,
+                        ),
+                      ),
+
+                      // Translation
+                      if (state.showTranslation) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          slide.translationText,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.outfit(
+                            fontSize: state.fontSize * 0.52,
+                            color: textColor.withAlpha(217),
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+
+                      // Slide label
+                      const SizedBox(height: 8),
+                      Text(
+                        slide.slideLabel,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: textColor.withAlpha(153),
+                          letterSpacing: 1.2,
                         ),
                       ),
                     ],
-
-                    // Slide label
-                    const SizedBox(height: 8),
-                    Text(
-                      slide.slideLabel,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: textColor.withAlpha(153),
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
+
+            // Watermark (top center)
+            if (state.watermarkText.isNotEmpty)
+              Positioned(
+                top: 24,
+                left: 0,
+                right: 0,
+                child: Text(
+                  state.watermarkText,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.outfit(
+                    fontSize: 14,
+                    color: Colors.white.withAlpha(200),
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.5,
+                    shadows: [
+                      const Shadow(blurRadius: 4, color: Colors.black54),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
       ),

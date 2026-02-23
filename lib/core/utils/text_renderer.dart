@@ -99,6 +99,26 @@ class TextRenderer {
     final refY = h - 80 * scale;
     refPainter.paint(canvas, Offset(refX, refY));
 
+    // Watermark at top
+    if (state.watermarkText.isNotEmpty) {
+      final wmStyle = GoogleFonts.outfit(
+        fontSize: 18 * scale,
+        color: Colors.white.withAlpha(200),
+        fontWeight: FontWeight.w600,
+        letterSpacing: 1.5,
+        shadows: [Shadow(blurRadius: 4 * scale, color: Colors.black54)],
+      );
+
+      final wmPainter = TextPainter(
+        text: TextSpan(text: state.watermarkText, style: wmStyle),
+        textDirection: TextDirection.ltr,
+        textAlign: TextAlign.center,
+      );
+      wmPainter.layout(maxWidth: maxTextWidth);
+      final wmX = (w - wmPainter.width) / 2;
+      wmPainter.paint(canvas, Offset(wmX, 30 * scale));
+    }
+
     // ── Save as PNG ──
     final picture = recorder.endRecording();
     final image = await picture.toImage(width, height);

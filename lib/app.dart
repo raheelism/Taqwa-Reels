@@ -16,7 +16,7 @@ final _router = GoRouter(
       builder: (_, __) => const AyahSelectionScreen(),
     ),
     GoRoute(path: '/background', builder: (_, __) => const BackgroundScreen()),
-    GoRoute(path: '/customize', builder: (_, __) => const CustomizeScreen()),
+    GoRoute(path: '/customize', builder: (context, state) => CustomizeScreen()),
     GoRoute(path: '/preview', builder: (_, __) => const PreviewExportScreen()),
   ],
 );
