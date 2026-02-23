@@ -43,125 +43,136 @@ class ReelPreviewCard extends ConsumerWidget {
       aspectRatio: 9 / 16,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Background
-            if (state.background != null)
-              state.background!.type == BackgroundType.image
-                  ? CachedNetworkImage(
-                      imageUrl: state.background!.fullUrl,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) =>
-                          Container(color: AppColors.bgCard),
-                      errorWidget: (_, __, ___) =>
-                          Container(color: AppColors.bgCard),
-                    )
-                  : CachedNetworkImage(
-                      imageUrl: state.background!.previewUrl,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) =>
-                          Container(color: AppColors.bgCard),
-                      errorWidget: (_, __, ___) =>
-                          Container(color: AppColors.bgCard),
-                    )
-            else
-              Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0xFF1A2040), Color(0xFF0A0E1A)],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // How text_renderer calculates scale: scale = outputWidth / 360.0
+            // Here, our UI "360 base" is actually represented by the widget's constraints.maxWidth
+            final scale = constraints.maxWidth / 360.0;
+
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                // Background
+                if (state.background != null)
+                  state.background!.type == BackgroundType.image
+                      ? CachedNetworkImage(
+                          imageUrl: state.background!.fullUrl,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) =>
+                              Container(color: AppColors.bgCard),
+                          errorWidget: (_, __, ___) =>
+                              Container(color: AppColors.bgCard),
+                        )
+                      : CachedNetworkImage(
+                          imageUrl: state.background!.previewUrl,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) =>
+                              Container(color: AppColors.bgCard),
+                          errorWidget: (_, __, ___) =>
+                              Container(color: AppColors.bgCard),
+                        )
+                else
+                  Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0xFF1A2040), Color(0xFF0A0E1A)],
+                      ),
+                    ),
+                  ),
+
+                // Dim overlay
+                Container(
+                  color: Colors.black.withAlpha(
+                    (state.dimOpacity * 255).round(),
                   ),
                 ),
-              ),
 
-            // Dim overlay
-            Container(
-              color: Colors.black.withAlpha((state.dimOpacity * 255).round()),
-            ),
-
-            // Positioned text with ScrollView to prevent UI overflow
-            Align(
-              alignment: Alignment(0, (yFrac * 2) - 1),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Arabic text
-                      Text(
-                        slide.arabicText,
-                        textDirection: TextDirection.rtl,
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.getFont(
-                          state.font.googleFontFamily,
-                          fontSize: state.fontSize,
-                          color: textColor,
-                          height: 1.8,
-                          shadows: state.showArabicShadow
-                              ? [
-                                  const Shadow(
-                                    blurRadius: 8,
-                                    color: Colors.black87,
-                                  ),
-                                ]
-                              : null,
-                        ),
-                      ),
-
-                      // Translation
-                      if (state.showTranslation) ...[
-                        const SizedBox(height: 12),
-                        Text(
-                          slide.translationText,
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.outfit(
-                            fontSize: state.fontSize * 0.52,
-                            color: textColor.withAlpha(217),
-                            fontStyle: FontStyle.italic,
+                // Positioned text with ScrollView to prevent UI overflow
+                Align(
+                  alignment: Alignment(0, (yFrac * 2) - 1),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Arabic text
+                          Text(
+                            slide.arabicText,
+                            textDirection: TextDirection.rtl,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.getFont(
+                              state.font.googleFontFamily,
+                              fontSize: state.fontSize * scale,
+                              color: textColor,
+                              height: 1.8,
+                              shadows: state.showArabicShadow
+                                  ? [
+                                      Shadow(
+                                        blurRadius: 4 * scale,
+                                        color: Colors.black87,
+                                        offset: Offset(3 * scale, 3 * scale),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
                           ),
-                        ),
-                      ],
 
-                      // Slide label
-                      const SizedBox(height: 8),
-                      Text(
-                        slide.slideLabel,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: textColor.withAlpha(153),
-                          letterSpacing: 1.2,
-                        ),
+                          // Translation
+                          if (state.showTranslation) ...[
+                            SizedBox(height: 12 * scale),
+                            Text(
+                              slide.translationText,
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.outfit(
+                                fontSize: state.fontSize * 0.52 * scale,
+                                color: textColor.withAlpha(217),
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+
+                          // Slide label
+                          SizedBox(height: 8 * scale),
+                          Text(
+                            slide.slideLabel,
+                            style: TextStyle(
+                              fontSize: 12 * scale,
+                              color: textColor.withAlpha(153),
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ),
 
-            // Watermark (top center)
-            if (state.watermarkText.isNotEmpty)
-              Positioned(
-                top: 24,
-                left: 0,
-                right: 0,
-                child: Text(
-                  state.watermarkText,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.outfit(
-                    fontSize: 14,
-                    color: Colors.white.withAlpha(200),
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.5,
-                    shadows: [
-                      const Shadow(blurRadius: 4, color: Colors.black54),
-                    ],
+                // Watermark (top center)
+                if (state.watermarkText.isNotEmpty)
+                  Positioned(
+                    top: 24 * scale,
+                    left: 0,
+                    right: 0,
+                    child: Text(
+                      state.watermarkText,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.outfit(
+                        fontSize: 14 * scale,
+                        color: Colors.white.withAlpha(200),
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.5,
+                        shadows: [
+                          Shadow(blurRadius: 4 * scale, color: Colors.black54),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );

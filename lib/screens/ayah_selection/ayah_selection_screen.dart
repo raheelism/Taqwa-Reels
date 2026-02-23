@@ -42,6 +42,8 @@ class _AyahSelectionScreenState extends ConsumerState<AyahSelectionScreen> {
   bool _isPlaying = false;
   int? _playingAyah;
 
+  final _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
@@ -55,6 +57,7 @@ class _AyahSelectionScreenState extends ConsumerState<AyahSelectionScreen> {
     _toCtrl.dispose();
     _searchCtrl.dispose();
     _audioPlayer.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -173,6 +176,17 @@ class _AyahSelectionScreenState extends ConsumerState<AyahSelectionScreen> {
       );
       ref.read(reelProvider.notifier).setAyahRange(from, to, slides);
       setState(() => _loadingAyahs = false);
+
+      // Auto-scroll to the preview section
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeOutCubic,
+          );
+        }
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -251,6 +265,7 @@ class _AyahSelectionScreenState extends ConsumerState<AyahSelectionScreen> {
             // Scrollable sections
             Expanded(
               child: ListView(
+                controller: _scrollController,
                 padding: const EdgeInsets.all(AppSpacing.md),
                 children: [
                   // ── Surah ──

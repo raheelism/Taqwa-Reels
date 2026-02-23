@@ -101,18 +101,19 @@ class VideoExportService {
     }
 
     // ── Phase 4: Per-slide durations ──
-    final slideCountPerAyah = <int, int>{};
+    final totalWordsPerAyah = <int, int>{};
     for (final s in state.slides) {
-      slideCountPerAyah[s.ayahNumber] =
-          (slideCountPerAyah[s.ayahNumber] ?? 0) + 1;
+      final wc = s.arabicText.split(RegExp(r'\s+')).length;
+      totalWordsPerAyah[s.ayahNumber] =
+          (totalWordsPerAyah[s.ayahNumber] ?? 0) + wc;
     }
-    final slideDurations = state.slides
-        .map(
-          (s) =>
-              (durations[s.ayahNumber] ?? 5.0) /
-              (slideCountPerAyah[s.ayahNumber] ?? 1),
-        )
-        .toList();
+
+    final slideDurations = state.slides.map((s) {
+      final ayahDuration = durations[s.ayahNumber] ?? 5.0;
+      final slideWords = s.arabicText.split(RegExp(r'\s+')).length;
+      final totalWords = totalWordsPerAyah[s.ayahNumber] ?? 1;
+      return ayahDuration * (slideWords / totalWords);
+    }).toList();
 
     final totalDuration = slideDurations.fold(0.0, (a, b) => a + b);
 

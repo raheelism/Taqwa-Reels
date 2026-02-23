@@ -94,10 +94,23 @@ List<ReelSlide> _split(
     ];
   }
 
-  final parts = (arWords.length / _kMaxWords).ceil();
+  int parts = (arWords.length / _kMaxWords).ceil();
+  final lastPartWords = arWords.length % _kMaxWords;
+  final halfLimit = _kMaxWords / 2;
+
+  // If the final remaining segment has fewer words than half the limit, merge it.
+  bool mergeLast = false;
+  if (parts > 1 && lastPartWords > 0 && lastPartWords <= halfLimit) {
+    parts -= 1;
+    mergeLast = true;
+  }
+
   return List.generate(parts, (p) {
     final s = p * _kMaxWords;
-    final e = (s + _kMaxWords).clamp(0, arWords.length);
+    final e = (p == parts - 1 && mergeLast)
+        ? arWords.length
+        : (s + _kMaxWords).clamp(0, arWords.length);
+
     final ts = ((s / arWords.length) * trWords.length).round().clamp(
       0,
       trWords.length,
