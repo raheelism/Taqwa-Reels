@@ -62,7 +62,7 @@ class TextRenderer {
 
     final maxTextWidth = w * 0.85;
 
-    // Arabic text (RTL)
+    // 1. Prepare Arabic Painter
     final arPainter = TextPainter(
       text: TextSpan(text: slide.arabicText, style: arStyle),
       textDirection: TextDirection.rtl,
@@ -70,34 +70,55 @@ class TextRenderer {
     );
     arPainter.layout(maxWidth: maxTextWidth);
 
-    final yBase = state.textPosition * h * 0.7 + h * 0.1;
-    final arX = (w - arPainter.width) / 2;
-    arPainter.paint(canvas, Offset(arX, yBase));
-
-    double nextY = yBase + arPainter.height + 12 * scale;
-
-    // Translation (LTR)
+    // 2. Prepare Translation Painter (if active)
+    TextPainter? trPainter;
     if (state.showTranslation && slide.translationText.isNotEmpty) {
-      final trPainter = TextPainter(
+      trPainter = TextPainter(
         text: TextSpan(text: slide.translationText, style: trStyle),
         textDirection: TextDirection.ltr,
         textAlign: TextAlign.center,
       );
       trPainter.layout(maxWidth: maxTextWidth);
-      final trX = (w - trPainter.width) / 2;
-      trPainter.paint(canvas, Offset(trX, nextY));
     }
 
-    // Slide label at bottom
+    // 3. Prepare Slide Label Painter
     final refPainter = TextPainter(
       text: TextSpan(text: slide.slideLabel, style: refStyle),
       textDirection: TextDirection.ltr,
       textAlign: TextAlign.center,
     );
     refPainter.layout(maxWidth: maxTextWidth);
+
+    // 4. Calculate Total Block Height
+    double totalHeight = arPainter.height;
+    if (trPainter != null) {
+      totalHeight += 12 * scale + trPainter.height;
+    }
+    totalHeight += 8 * scale + refPainter.height;
+
+    // 5. Calculate Starting Y matching ReelPreviewCard's Align + Padding behavior
+    // ReelPreviewCard has a padding of 20 units inside the Align block.
+    final paddingOffset = 40 * scale;
+    final activeHeight = totalHeight + paddingOffset;
+    final startY = (h - activeHeight) * state.textPosition + (20 * scale);
+
+    // 6. Paint all elements sequentially
+    double currentY = startY;
+
+    final arX = (w - arPainter.width) / 2;
+    arPainter.paint(canvas, Offset(arX, currentY));
+    currentY += arPainter.height;
+
+    if (trPainter != null) {
+      currentY += 12 * scale;
+      final trX = (w - trPainter.width) / 2;
+      trPainter.paint(canvas, Offset(trX, currentY));
+      currentY += trPainter.height;
+    }
+
+    currentY += 8 * scale;
     final refX = (w - refPainter.width) / 2;
-    final refY = h - 80 * scale;
-    refPainter.paint(canvas, Offset(refX, refY));
+    refPainter.paint(canvas, Offset(refX, currentY));
 
     // Watermark at top
     if (state.watermarkText.isNotEmpty) {

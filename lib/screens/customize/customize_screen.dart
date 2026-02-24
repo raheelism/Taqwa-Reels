@@ -206,52 +206,6 @@ class CustomizeScreen extends ConsumerWidget {
                             activeTrackColor: AppColors.primary,
                             onChanged: (v) => notifier.setShowShadow(v),
                           ),
-                          const Divider(
-                            height: 1,
-                            color: AppColors.bgCardLight,
-                          ),
-                          SwitchListTile(
-                            title: const Text(
-                              'Show Bismillah Slide',
-                              style: TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 14,
-                              ),
-                            ),
-                            subtitle: const Text(
-                              'Add Bismillah at the start of video',
-                              style: TextStyle(
-                                color: AppColors.textMuted,
-                                fontSize: 12,
-                              ),
-                            ),
-                            value: state.includeBismillah,
-                            activeTrackColor: AppColors.primary,
-                            onChanged: (v) => notifier.setIncludeBismillah(v),
-                          ),
-                          const Divider(
-                            height: 1,
-                            color: AppColors.bgCardLight,
-                          ),
-                          SwitchListTile(
-                            title: const Text(
-                              'Show Ayah Numbers',
-                              style: TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 14,
-                              ),
-                            ),
-                            subtitle: const Text(
-                              'Display ۝ symbols with numbers',
-                              style: TextStyle(
-                                color: AppColors.textMuted,
-                                fontSize: 12,
-                              ),
-                            ),
-                            value: state.showAyahNumber,
-                            activeTrackColor: AppColors.primary,
-                            onChanged: (v) => notifier.setShowAyahNumber(v),
-                          ),
                         ],
                       ),
                     ),

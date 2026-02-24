@@ -349,6 +349,70 @@ class _AyahSelectionScreenState extends ConsumerState<AyahSelectionScreen> {
 
                     const SizedBox(height: AppSpacing.lg),
 
+                    // ── Display Options ──
+                    const SectionHeader('Display Options'),
+                    const SizedBox(height: AppSpacing.sm),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.bgCard,
+                        borderRadius: BorderRadius.circular(
+                          AppSpacing.radiusMd,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          SwitchListTile(
+                            title: const Text(
+                              'Show Bismillah Slide',
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 14,
+                              ),
+                            ),
+                            subtitle: const Text(
+                              'Add Bismillah at the start of video',
+                              style: TextStyle(
+                                color: AppColors.textMuted,
+                                fontSize: 12,
+                              ),
+                            ),
+                            value: state.includeBismillah,
+                            activeTrackColor: AppColors.primary,
+                            onChanged: (v) => ref
+                                .read(reelProvider.notifier)
+                                .setIncludeBismillah(v),
+                          ),
+                          const Divider(
+                            height: 1,
+                            color: AppColors.bgCardLight,
+                          ),
+                          SwitchListTile(
+                            title: const Text(
+                              'Show Ayah Numbers',
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 14,
+                              ),
+                            ),
+                            subtitle: const Text(
+                              'Display ۝ symbols with numbers',
+                              style: TextStyle(
+                                color: AppColors.textMuted,
+                                fontSize: 12,
+                              ),
+                            ),
+                            value: state.showAyahNumber,
+                            activeTrackColor: AppColors.primary,
+                            onChanged: (v) => ref
+                                .read(reelProvider.notifier)
+                                .setShowAyahNumber(v),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.lg),
+
                     // ── Generate ──
                     _buildGenerateButton(),
 
