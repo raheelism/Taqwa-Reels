@@ -173,7 +173,7 @@ class CustomizeScreen extends ConsumerWidget {
                               ),
                             ),
                             subtitle: const Text(
-                              'Display English translation',
+                              'Display translation',
                               style: TextStyle(
                                 color: AppColors.textMuted,
                                 fontSize: 12,

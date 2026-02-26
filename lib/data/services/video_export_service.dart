@@ -175,9 +175,29 @@ class VideoExportService {
     final outputPath =
         '$tmp/TaqwaReels_${DateTime.now().millisecondsSinceEpoch}.mp4';
 
+    // Pre-bake the looped video background to exact duration to
+    // eliminate timestamp discontinuities that cause early-second jitter.
+    String effectiveBgPath = bgPath;
+    if (state.background!.type == BackgroundType.video) {
+      onProgress(
+        const ExportProgress(
+          phase: ExportPhase.renderingVideo,
+          label: 'Preparing background',
+          progress: 0.35,
+        ),
+      );
+      effectiveBgPath = await _preprocessBackgroundVideo(
+        bgPath: bgPath,
+        totalDuration: totalDuration,
+        width: opts.width,
+        height: opts.height,
+        tmpDir: tmp,
+      );
+    }
+
     final cmd = state.background!.type == BackgroundType.video
         ? _buildVideoBackgroundCommand(
-            bgPath: bgPath,
+            bgPath: effectiveBgPath,
             audioPath: mergedAudioPath,
             slidePngs: slidePngs,
             slideDurations: slideDurations,
@@ -255,6 +275,32 @@ class VideoExportService {
     return dir.path;
   }
 
+  /// Pre-bake the looped video background into a single clip of the exact
+  /// required duration. This eliminates all loop-seam timestamp issues
+  /// *before* the complex overlay filter graph runs.
+  Future<String> _preprocessBackgroundVideo({
+    required String bgPath,
+    required double totalDuration,
+    required int width,
+    required int height,
+    required String tmpDir,
+  }) async {
+    final processedPath = '$tmpDir/background_processed.mp4';
+    final session = await FFmpegKit.execute(
+      '-y -stream_loop -1 -i "$bgPath" -t $totalDuration '
+      '-vf "fps=30,setpts=PTS-STARTPTS,'
+      'scale=$width:$height:force_original_aspect_ratio=increase,'
+      'crop=$width:$height,setsar=1" '
+      '-vsync cfr -c:v libx264 -preset ultrafast -crf 23 -an "$processedPath"',
+    );
+    final rc = await session.getReturnCode();
+    if (!ReturnCode.isSuccess(rc)) {
+      final log = await session.getOutput();
+      throw Exception('Background pre-processing failed:\n$log');
+    }
+    return processedPath;
+  }
+
   // ── Overlay filter builder ──
   /// Builds the -filter_complex string that chains overlay filters
   /// for each slide PNG, each enabled for its time window.
@@ -296,16 +342,14 @@ class VideoExportService {
     required String outputPath,
     required ExportOptions opts,
   }) {
-    final w = opts.width;
-    final h = opts.height;
-
     // Dim overlay
     final dimAlpha = state.dimOpacity.toStringAsFixed(2);
 
     // Background filter chain → produces [bg]
+    // bgPath is already pre-baked (looped, scaled, cropped) so only
+    // timestamp reset, pixel format, and dimming are needed here.
     final bgChain =
-        '[0:v]scale=$w:$h:force_original_aspect_ratio=increase,'
-        'crop=$w:$h,setsar=1,format=yuva420p,'
+        '[0:v]setpts=PTS-STARTPTS,format=yuv420p,'
         'drawbox=c=black@$dimAlpha:t=fill[bg]';
 
     final filterComplex = _buildOverlayFilterChain(
@@ -314,9 +358,9 @@ class VideoExportService {
       bgFilterChain: bgChain,
     );
 
-    // Build input list
+    // Build input list — no -stream_loop, bgPath is already the right length
     final inputs = [
-      '-stream_loop -1 -i "$bgPath"',
+      '-i "$bgPath"',
       '-i "$audioPath"',
       ...slidePngs.map((p) => '-i "$p"'),
     ];
@@ -328,9 +372,10 @@ class VideoExportService {
       '-filter_complex',
       '"$filterComplex"',
       '-map "[v]" -map 1:a',
-      '-c:v libx264 -preset medium -crf 22',
+      '-vsync cfr',
+      '-c:v libx264 -preset ultrafast -crf 23',
       '-c:a aac -b:a 128k',
-      '-shortest',
+      '-pix_fmt yuv420p',
       '-movflags +faststart',
       '"$outputPath"',
     ].join(' ');
@@ -383,8 +428,9 @@ class VideoExportService {
       '-filter_complex',
       '"$filterComplex"',
       '-map "[v]" -map 1:a',
-      '-c:v libx264 -preset medium -crf 22',
+      '-c:v libx264 -preset ultrafast -crf 23',
       '-c:a aac -b:a 128k',
+      '-pix_fmt yuv420p',
       if (opts.audioFadeOut) '-af "afade=t=out:st=${totalDuration - 1}:d=1"',
       '-shortest',
       '-movflags +faststart',

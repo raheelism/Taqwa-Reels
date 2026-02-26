@@ -8,7 +8,7 @@ class ExportOptions {
 
   const ExportOptions({
     this.quality = ExportQuality.hd720,
-    this.kenBurnsEffect = true,
+    this.kenBurnsEffect = false,
     this.audioFadeOut = true,
     this.textShadowOpacity = 0.6,
   });
