@@ -1,12 +1,16 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit_config.dart';
 import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:hive/hive.dart';
+import 'package:uuid/uuid.dart';
 import '../../core/utils/text_renderer.dart';
 import '../models/background_item.dart';
 import '../models/export_options.dart';
+import '../models/generated_video.dart';
 import '../../state/reel_state.dart';
 import 'audio_service.dart';
 
@@ -18,6 +22,7 @@ enum ExportPhase {
   probingDurations,
   renderingTextOverlays,
   renderingVideo,
+  savingMetadata,
   savingToGallery,
   done,
   error,
@@ -43,6 +48,7 @@ typedef OnProgress = void Function(ExportProgress);
 
 class VideoExportService {
   final _dio = Dio();
+  final _uuid = const Uuid();
 
   /// Main export entry point. Downloads assets, renders text overlays
   /// as PNG images, builds FFmpeg overlay command, and renders the final MP4.
@@ -172,8 +178,10 @@ class VideoExportService {
         progress: 0.35,
       ),
     );
-    final outputPath =
-        '$tmp/TaqwaReels_${DateTime.now().millisecondsSinceEpoch}.mp4';
+    final videoId = _uuid.v4();
+    final persistentDir = await _ensurePersistentDir();
+    final outputPath = '$persistentDir/$videoId.mp4';
+    final thumbPath = '$persistentDir/${videoId}_thumb.jpg';
 
     // Pre-bake the looped video background to exact duration to
     // eliminate timestamp discontinuities that cause early-second jitter.
@@ -238,6 +246,58 @@ class VideoExportService {
       throw Exception('FFmpeg failed:\n$log');
     }
 
+    // ── Phase 8: Save Metadata and generate thumbnail ──
+    onProgress(
+      const ExportProgress(
+        phase: ExportPhase.savingMetadata,
+        label: 'Saving to Gallery',
+        progress: 0.95,
+      ),
+    );
+
+    await FFmpegKit.execute(
+      '-y -i "$outputPath" -ss 00:00:01.000 -vframes 1 "$thumbPath"',
+    );
+
+    final metadataJson = jsonEncode({
+      'surahNumber': state.surahNumber,
+      'surahName': state.surahName,
+      'fromAyah': state.fromAyah,
+      'toAyah': state.toAyah,
+      'slides': state.slides.map((s) => s.toJson()).toList(),
+      'reciter': state.reciter.toJson(),
+      'exportOptions': state.exportOptions.toJson(),
+      'backgroundId': state.background?.id,
+      'backgroundPreviewUrl': state.background?.previewUrl,
+      'backgroundFullUrl': state.background?.fullUrl,
+      'backgroundType': state.background?.type == BackgroundType.video
+          ? 'video'
+          : 'image',
+      // Text options
+      'fontId': state.font.id,
+      'textColor': state.textColor,
+      'textPosition': state.textPosition,
+      'fontSize': state.fontSize,
+      'dimOpacity': state.dimOpacity,
+      'showTranslation': state.showTranslation,
+      'showArabicShadow': state.showArabicShadow,
+      'includeBismillah': state.includeBismillah,
+      'showAyahNumber': state.showAyahNumber,
+      'watermarkText': state.watermarkText,
+    });
+
+    final box = Hive.box<GeneratedVideo>('videos');
+    await box.put(
+      videoId,
+      GeneratedVideo(
+        id: videoId,
+        videoPath: outputPath,
+        thumbnailPath: thumbPath,
+        createdAt: DateTime.now(),
+        metadataJson: metadataJson,
+      ),
+    );
+
     onProgress(
       const ExportProgress(
         phase: ExportPhase.done,
@@ -271,6 +331,13 @@ class VideoExportService {
   Future<String> _ensureExportDir() async {
     final tmp = await getTemporaryDirectory();
     final dir = Directory('${tmp.path}/taqwareels');
+    await dir.create(recursive: true);
+    return dir.path;
+  }
+
+  Future<String> _ensurePersistentDir() async {
+    final appDir = await getApplicationDocumentsDirectory();
+    final dir = Directory('${appDir.path}/taqwa_gallery');
     await dir.create(recursive: true);
     return dir.path;
   }

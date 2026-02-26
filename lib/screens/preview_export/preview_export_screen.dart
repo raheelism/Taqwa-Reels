@@ -220,7 +220,9 @@ class _PreviewExportScreenState extends ConsumerState<PreviewExportScreen> {
           child: OutlinedButton.icon(
             onPressed: _exportedPath != null
                 ? () async {
-                    await Share.shareXFiles([XFile(_exportedPath!)]);
+                    await SharePlus.instance.share(
+                      ShareParams(files: [XFile(_exportedPath!)]),
+                    );
                   }
                 : null,
             icon: Icon(

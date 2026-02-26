@@ -130,7 +130,9 @@ class _SuccessSheetContentState extends State<_SuccessSheetContent> {
                 child: OutlinedButton.icon(
                   onPressed: () async {
                     if (widget.path != null) {
-                      await Share.shareXFiles([XFile(widget.path!)]);
+                      await SharePlus.instance.share(
+                        ShareParams(files: [XFile(widget.path!)]),
+                      );
                     }
                   },
                   icon: const Icon(

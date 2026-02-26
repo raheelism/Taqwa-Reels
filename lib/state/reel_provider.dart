@@ -181,6 +181,8 @@ class ReelNotifier extends StateNotifier<ReelState> {
   void setWatermarkText(v) => state = state.copyWith(watermarkText: v);
   void setExportOptions(o) => state = state.copyWith(exportOptions: o);
   void reset() => state = ReelState.initial();
+
+  void restore(ReelState newState) => state = newState;
 }
 
 // ── Providers ──
