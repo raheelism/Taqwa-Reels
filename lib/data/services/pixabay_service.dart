@@ -22,7 +22,7 @@ class PixabayService {
       '/',
       queryParameters: {
         'key': _kKey,
-        'q': q,
+        'q': '$q -people -man -woman -face -portrait -girl -boy',
         'image_type': 'photo',
         'orientation': 'vertical',
         'per_page': 15,
@@ -52,7 +52,7 @@ class PixabayService {
       '/videos/',
       queryParameters: {
         'key': _kKey,
-        'q': q,
+        'q': '$q -people -man -woman -face -portrait -girl -boy',
         'per_page': 10,
         'page': page,
         'safesearch': 'true',
@@ -60,17 +60,21 @@ class PixabayService {
     );
     final items = (r.data['hits'] as List).map((h) {
       final v = h['videos'] as Map<String, dynamic>;
-      // Construct a thumbnail URL from the video's picture_id
-      // Pixabay stores video thumbnails at this CDN pattern
-      final pictureId = h['picture_id'] as String? ?? '';
-      final thumbUrl = pictureId.isNotEmpty
-          ? 'https://i.vimeocdn.com/video/${pictureId}_640x360.jpg'
-          : (h['userImageURL'] as String? ?? '');
+
+      // The API provides direct thumbnail strings under the resolution objects
+      String thumbUrl = '';
+      if (v['tiny'] != null && v['tiny']['thumbnail'] != null) {
+        thumbUrl = v['tiny']['thumbnail'] as String;
+      } else {
+        thumbUrl = h['userImageURL'] as String? ?? '';
+      }
+
       return BackgroundItem(
         id: h['id'] as int,
         type: BackgroundType.video,
         previewUrl: thumbUrl,
         fullUrl: (v['medium'] as Map<String, dynamic>)['url'] as String,
+        duration: h['duration'] as int? ?? 0,
       );
     }).toList();
     _vidCache[key] = items;

@@ -72,6 +72,15 @@ class _VideoDetailScreenState extends ConsumerState<VideoDetailScreen> {
       if (metadata['backgroundId'] != null) {
         try {
           final isVideo = metadata['backgroundType'] == 'video';
+          final durationVal = metadata['backgroundDuration'];
+          int durationInt = 0;
+          if (durationVal != null) {
+            if (durationVal is String) {
+              durationInt = int.tryParse(durationVal) ?? 0;
+            } else if (durationVal is num) {
+              durationInt = durationVal.toInt();
+            }
+          }
 
           if (metadata['backgroundFullUrl'] != null &&
               metadata['backgroundFullUrl'].toString().isNotEmpty) {
@@ -80,6 +89,7 @@ class _VideoDetailScreenState extends ConsumerState<VideoDetailScreen> {
               type: isVideo ? BackgroundType.video : BackgroundType.image,
               previewUrl: metadata['backgroundPreviewUrl'] ?? '',
               fullUrl: metadata['backgroundFullUrl'],
+              duration: durationInt,
             );
           } else {
             // Fallback for old reels saved without URLs (dummy urls)
@@ -88,6 +98,7 @@ class _VideoDetailScreenState extends ConsumerState<VideoDetailScreen> {
               type: BackgroundType.image,
               previewUrl: '',
               fullUrl: '',
+              duration: 0,
             );
           }
         } catch (_) {}

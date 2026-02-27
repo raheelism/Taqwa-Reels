@@ -255,9 +255,21 @@ class VideoExportService {
       ),
     );
 
-    await FFmpegKit.execute(
-      '-y -i "$outputPath" -ss 00:00:01.000 -vframes 1 "$thumbPath"',
-    );
+    // Grab a clean frame from the background to use as the thumbnail
+    // For images, we just scale it. For videos, we grab a frame at 3 seconds
+    // to bypass typical Pixabay intro slates, or at 50% if the video is very short.
+    if (state.background!.type == BackgroundType.video) {
+      final thumbTime = totalDuration > 10.0
+          ? '00:00:03.000'
+          : (totalDuration / 2).toStringAsFixed(3);
+      await FFmpegKit.execute(
+        '-y -i "$effectiveBgPath" -ss $thumbTime -vframes 1 -vf "scale=${opts.width}:${opts.height}:force_original_aspect_ratio=increase,crop=${opts.width}:${opts.height}" "$thumbPath"',
+      );
+    } else {
+      await FFmpegKit.execute(
+        '-y -i "$bgPath" -vframes 1 -vf "scale=${opts.width}:${opts.height}:force_original_aspect_ratio=increase,crop=${opts.width}:${opts.height}" "$thumbPath"',
+      );
+    }
 
     final metadataJson = jsonEncode({
       'surahNumber': state.surahNumber,
@@ -270,6 +282,7 @@ class VideoExportService {
       'backgroundId': state.background?.id,
       'backgroundPreviewUrl': state.background?.previewUrl,
       'backgroundFullUrl': state.background?.fullUrl,
+      'backgroundDuration': state.background?.duration,
       'backgroundType': state.background?.type == BackgroundType.video
           ? 'video'
           : 'image',

@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 
-/// Categories for Pixabay background search.
 const kBackgroundCategories = <String>[
   'mosque',
   'nature',
   'sky',
   'ocean',
-  'desert',
   'stars',
   'sunset',
-  'mountain',
+  'mountains',
+  'forest',
+  'waterfall',
+  'galaxy',
+  'rain',
+  'cinematic landscape',
 ];
 
 /// Preset text color options for overlays (hex strings).
