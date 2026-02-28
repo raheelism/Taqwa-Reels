@@ -12,6 +12,8 @@ import 'widgets/aspect_ratio_sheet.dart';
 import 'widgets/color_swatches.dart';
 import 'widgets/font_picker_sheet.dart';
 import 'widgets/style_controls.dart';
+import '../../data/constants/style_presets.dart';
+import '../../data/constants/font_options.dart';
 
 class CustomizeScreen extends ConsumerWidget {
   CustomizeScreen({super.key});
@@ -65,6 +67,184 @@ class CustomizeScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // ── Style Presets ──
+                    _sectionHeader('Quick Presets'),
+                    const SizedBox(height: AppSpacing.sm),
+                    SizedBox(
+                      height: 140,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: kStylePresets.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 12),
+                        itemBuilder: (_, i) {
+                          final preset = kStylePresets[i];
+                          final presetColor = Color(
+                            int.parse(preset.textColor.replaceFirst('#', '0xFF')),
+                          );
+                          final fontOption = kFontOptions.firstWhere(
+                            (f) => f.id == preset.fontId,
+                            orElse: () => kFontOptions.first,
+                          );
+                          final isActive = state.textColor == preset.textColor &&
+                              state.font.id == preset.fontId;
+                          return GestureDetector(
+                            onTap: () {
+                              notifier.setFont(fontOption);
+                              notifier.setTextColor(preset.textColor);
+                              notifier.setDimOpacity(preset.dimOpacity);
+                              notifier.setFontSize(preset.fontSize);
+                              notifier.setShowShadow(preset.showArabicShadow);
+                              notifier.setTextPosition(preset.textPosition);
+                              notifier.setExportOptions(
+                                state.exportOptions.copyWith(
+                                  backgroundBlur: preset.backgroundBlur,
+                                  translationFontScale: preset.translationFontScale,
+                                ),
+                              );
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 250),
+                              width: 120,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isActive
+                                      ? presetColor
+                                      : presetColor.withAlpha(40),
+                                  width: isActive ? 2 : 1,
+                                ),
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    presetColor.withAlpha(18),
+                                    AppColors.bgCard,
+                                    AppColors.bgCard,
+                                  ],
+                                ),
+                                boxShadow: isActive
+                                    ? [
+                                        BoxShadow(
+                                          color: presetColor.withAlpha(50),
+                                          blurRadius: 12,
+                                          spreadRadius: 1,
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                              child: Stack(
+                                children: [
+                                  // Dim overlay preview
+                                  Positioned.fill(
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius:
+                                            BorderRadius.circular(15),
+                                        color: Colors.black.withAlpha(
+                                          (preset.dimOpacity * 80).toInt(),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  // Content
+                                  Padding(
+                                    padding: const EdgeInsets.all(10),
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        // Sample Arabic text preview
+                                        Expanded(
+                                          child: Center(
+                                            child: Text(
+                                              'بِسْمِ ٱللَّهِ',
+                                              textAlign: TextAlign.center,
+                                              style: GoogleFonts.getFont(
+                                                fontOption.googleFontFamily,
+                                                fontSize: 18,
+                                                color: presetColor,
+                                                height: 1.4,
+                                                shadows: preset
+                                                        .showArabicShadow
+                                                    ? [
+                                                        Shadow(
+                                                          color: Colors.black
+                                                              .withAlpha(140),
+                                                          blurRadius: 6,
+                                                        ),
+                                                      ]
+                                                    : null,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        // Preset name badge
+                                        Container(
+                                          width: double.infinity,
+                                          padding:
+                                              const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 5,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                presetColor.withAlpha(25),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            preset.name,
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              color: presetColor
+                                                  .withAlpha(220),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w700,
+                                              letterSpacing: 0.3,
+                                            ),
+                                            maxLines: 1,
+                                            overflow:
+                                                TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  // Active check badge
+                                  if (isActive)
+                                    Positioned(
+                                      top: 6,
+                                      right: 6,
+                                      child: Container(
+                                        width: 20,
+                                        height: 20,
+                                        decoration: BoxDecoration(
+                                          color: presetColor,
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: presetColor
+                                                  .withAlpha(100),
+                                              blurRadius: 6,
+                                            ),
+                                          ],
+                                        ),
+                                        child: const Icon(
+                                          Icons.check,
+                                          size: 12,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+
                     // ── Text & Style Section ──
                     _sectionHeader('Text & Style'),
                     const SizedBox(height: AppSpacing.sm),
@@ -236,6 +416,32 @@ class CustomizeScreen extends ConsumerWidget {
                       onChanged: (v) => notifier.setWatermarkText(v),
                     ),
                     const SizedBox(height: AppSpacing.sm),
+
+                    // Watermark Font Size
+                    SliderCard(
+                      icon: Icons.format_size_rounded,
+                      title: 'Watermark Size',
+                      value: state.exportOptions.watermarkFontSize,
+                      min: 10,
+                      max: 28,
+                      label: '${state.exportOptions.watermarkFontSize.round()}',
+                      onChanged: (v) => notifier.setExportOptions(
+                        state.exportOptions.copyWith(watermarkFontSize: v),
+                      ),
+                    ),
+
+                    // Watermark Opacity
+                    SliderCard(
+                      icon: Icons.opacity_rounded,
+                      title: 'Watermark Opacity',
+                      value: state.exportOptions.watermarkOpacity,
+                      min: 0.3,
+                      max: 1.0,
+                      label: '${(state.exportOptions.watermarkOpacity * 100).round()}%',
+                      onChanged: (v) => notifier.setExportOptions(
+                        state.exportOptions.copyWith(watermarkOpacity: v),
+                      ),
+                    ),
 
                     // Watermark Position
                     _label('Position'),

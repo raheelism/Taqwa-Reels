@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,6 +8,8 @@ import 'package:share_plus/share_plus.dart';
 import 'package:gal/gal.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/utils/text_renderer.dart';
+import '../../data/models/background_item.dart';
 import '../../data/services/video_export_service.dart';
 import '../../state/reel_provider.dart';
 import '../shared/reel_preview_card.dart';
@@ -23,6 +27,7 @@ class PreviewExportScreen extends ConsumerStatefulWidget {
 
 class _PreviewExportScreenState extends ConsumerState<PreviewExportScreen> {
   bool _exporting = false;
+  bool _exportingImage = false;
   ExportProgress? _progress;
   String? _exportedPath;
   String? _error;
@@ -69,6 +74,108 @@ class _PreviewExportScreenState extends ConsumerState<PreviewExportScreen> {
       setState(() {
         _exporting = false;
         _error = e.toString();
+      });
+    }
+  }
+
+  /// Export the current slide as a single PNG image.
+  Future<void> _saveAsImage() async {
+    setState(() {
+      _exportingImage = true;
+      _error = null;
+    });
+
+    try {
+      final state = ref.read(reelProvider);
+      final slide = state.slides[state.currentSlideIndex];
+      final opts = state.exportOptions;
+      final w = opts.width;
+      final h = opts.height;
+
+      // Get tmp path
+      final tmpDir = Directory.systemTemp.path;
+      final imgDir = '$tmpDir/taqwa_image_export';
+      await Directory(imgDir).create(recursive: true);
+
+      // 1. Draw background onto canvas
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()));
+
+      // Background color
+      Color bgColor;
+      if (state.background?.type == BackgroundType.solidColor) {
+        final hex = state.background!.solidColorHex ?? '#0A0E1A';
+        bgColor = Color(int.parse(hex.replaceFirst('#', '0xFF')));
+      } else {
+        bgColor = const Color(0xFF0A0E1A);
+      }
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
+        Paint()..color = bgColor,
+      );
+
+      // Dim overlay
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
+        Paint()..color = Colors.black.withAlpha((state.dimOpacity * 255).round()),
+      );
+
+      final bgPicture = recorder.endRecording();
+      final bgImage = await bgPicture.toImage(w, h);
+      final bgByteData = await bgImage.toByteData(format: ui.ImageByteFormat.png);
+      bgImage.dispose();
+      final bgPngPath = '$imgDir/bg.png';
+      await File(bgPngPath).writeAsBytes(bgByteData!.buffer.asUint8List());
+
+      // 2. Render text overlay
+      final textPngPath = await TextRenderer.renderSlide(
+        slide: slide,
+        state: state,
+        width: w,
+        height: h,
+        outputPath: '$imgDir/text.png',
+      );
+
+      // 3. Composite: bg + text overlay
+      // Load both as images then paint overlay on top
+      final bgBytes = await File(bgPngPath).readAsBytes();
+      final textBytes = await File(textPngPath).readAsBytes();
+
+      final bgCodec = await ui.instantiateImageCodec(bgBytes);
+      final bgFrame = await bgCodec.getNextFrame();
+      final textCodec = await ui.instantiateImageCodec(textBytes);
+      final textFrame = await textCodec.getNextFrame();
+
+      final finalRecorder = ui.PictureRecorder();
+      final finalCanvas = Canvas(finalRecorder, Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()));
+      finalCanvas.drawImage(bgFrame.image, Offset.zero, Paint());
+      finalCanvas.drawImage(textFrame.image, Offset.zero, Paint());
+      final finalPicture = finalRecorder.endRecording();
+      final finalImage = await finalPicture.toImage(w, h);
+      final finalByteData = await finalImage.toByteData(format: ui.ImageByteFormat.png);
+      finalImage.dispose();
+      bgFrame.image.dispose();
+      textFrame.image.dispose();
+
+      final outputPath = '$imgDir/taqwa_slide_${state.currentSlideIndex}.png';
+      await File(outputPath).writeAsBytes(finalByteData!.buffer.asUint8List());
+
+      // Save to gallery
+      await Gal.putImage(outputPath, album: 'TaqwaReels');
+
+      if (!mounted) return;
+      setState(() => _exportingImage = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Image saved to gallery!'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _exportingImage = false;
+        _error = 'Image export failed: $e';
       });
     }
   }
@@ -211,6 +318,34 @@ class _PreviewExportScreenState extends ConsumerState<PreviewExportScreen> {
             label: const Text('Export Reel'),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: (_exporting || _exportingImage) ? null : _saveAsImage,
+            icon: _exportingImage
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                  )
+                : Icon(
+                    Icons.image_rounded,
+                    color: AppColors.primary,
+                  ),
+            label: Text(
+              _exportingImage ? 'Saving...' : 'Save Current Slide as Image',
+              style: TextStyle(color: AppColors.primary),
+            ),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              side: const BorderSide(color: AppColors.primaryDim),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
         ),

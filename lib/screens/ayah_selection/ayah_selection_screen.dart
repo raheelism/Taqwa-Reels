@@ -8,6 +8,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../data/models/surah.dart';
 import '../../data/services/audio_service.dart';
 import '../../data/services/quran_api_service.dart';
+import '../../data/services/favorites_service.dart';
 import '../../state/reel_provider.dart';
 import '../shared/section_header.dart';
 import '../shared/step_indicator.dart';
@@ -276,6 +277,40 @@ class _AyahSelectionScreenState extends ConsumerState<AyahSelectionScreen> {
                 controller: _scrollController,
                 padding: const EdgeInsets.all(AppSpacing.md),
                 children: [
+                  // ── Favorites ──
+                  if (FavoritesService.count > 0) ...[
+                    const SectionHeader('Favorites'),
+                    const SizedBox(height: AppSpacing.sm),
+                    SizedBox(
+                      height: 44,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: FavoritesService.getAll().map((fav) {
+                          final label = '${fav['surahName']} ${fav['fromAyah']}-${fav['toAyah']}';
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: ActionChip(
+                              avatar: const Icon(Icons.favorite_rounded, size: 16, color: AppColors.error),
+                              label: Text(label, style: const TextStyle(color: AppColors.textPrimary, fontSize: 12)),
+                              backgroundColor: AppColors.bgCard,
+                              side: BorderSide(color: AppColors.primary.withAlpha(60)),
+                              onPressed: () {
+                                // Find the surah and auto-select
+                                final surah = _allSurahs.where((s) => s.number == fav['surahNumber']).firstOrNull;
+                                if (surah != null) {
+                                  _selectSurah(surah);
+                                  _fromCtrl.text = '${fav['fromAyah']}';
+                                  _toCtrl.text = '${fav['toAyah']}';
+                                }
+                              },
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
+
                   // ── Surah ──
                   const SectionHeader('Select Surah'),
                   const SizedBox(height: AppSpacing.sm),
@@ -437,7 +472,7 @@ class _AyahSelectionScreenState extends ConsumerState<AyahSelectionScreen> {
             ),
 
             // ── Next ──
-            if (state.slides.isNotEmpty)
+            if (state.slides.isNotEmpty && _selectedSurah != null)
               Padding(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 child: SizedBox(
@@ -498,32 +533,66 @@ class _AyahSelectionScreenState extends ConsumerState<AyahSelectionScreen> {
     ),
   );
 
-  Widget _buildSegmentSummary(int count) => Container(
-    padding: const EdgeInsets.all(AppSpacing.md),
-    decoration: BoxDecoration(
-      color: AppColors.success.withAlpha(25),
-      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-      border: Border.all(color: AppColors.success.withAlpha(80)),
-    ),
-    child: Row(
-      children: [
-        const Icon(
-          Icons.check_circle_rounded,
-          color: AppColors.success,
-          size: 22,
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            '$count segment${count > 1 ? 's' : ''} ready for video',
-            style: GoogleFonts.outfit(
-              color: AppColors.success,
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
+  Widget _buildSegmentSummary(int count) {
+    final isFav = _selectedSurah != null &&
+        FavoritesService.isFavorite(
+          _selectedSurah!.number,
+          int.tryParse(_fromCtrl.text) ?? 1,
+          int.tryParse(_toCtrl.text) ?? 1,
+        );
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.success.withAlpha(25),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: AppColors.success.withAlpha(80)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.check_circle_rounded,
+            color: AppColors.success,
+            size: 22,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '$count segment${count > 1 ? 's' : ''} ready for video',
+              style: GoogleFonts.outfit(
+                color: AppColors.success,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
+          GestureDetector(
+            onTap: () {
+              if (_selectedSurah == null) return;
+              final nowFav = FavoritesService.toggle(
+                surahNumber: _selectedSurah!.number,
+                surahName: _selectedSurah!.englishName,
+                fromAyah: int.tryParse(_fromCtrl.text) ?? 1,
+                toAyah: int.tryParse(_toCtrl.text) ?? 1,
+              );
+              setState(() {});
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    nowFav ? 'Added to favorites' : 'Removed from favorites',
+                  ),
+                  duration: const Duration(seconds: 2),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
+            child: Icon(
+              isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+              color: isFav ? AppColors.error : AppColors.textSecondary,
+              size: 22,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

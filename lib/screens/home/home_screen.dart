@@ -1,15 +1,78 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../data/models/background_item.dart';
+import '../../data/services/quran_api_service.dart';
+import '../../state/reel_provider.dart';
 import 'widgets/hero_header.dart';
 import 'widgets/category_card.dart';
+import 'widgets/surah_of_the_day.dart';
 import 'widgets/templates_row.dart';
 import 'widgets/samples_row.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  bool _loadingSurahOfDay = false;
+
+  Future<void> _onSurahOfDayTapped(Map<String, dynamic> surah) async {
+    if (_loadingSurahOfDay) return;
+    setState(() => _loadingSurahOfDay = true);
+
+    try {
+      final notifier = ref.read(reelProvider.notifier);
+      final surahNumber = surah['number'] as int;
+      final surahName = surah['name'] as String;
+      final totalAyahs = surah['ayahs'] as int;
+
+      notifier.setSurah(surahNumber, surahName);
+
+      final to = totalAyahs > 3 ? 3 : totalAyahs;
+      final state = ref.read(reelProvider);
+
+      final ayahs = await ref.read(quranApiProvider).fetchRange(
+            surahNumber, 1, to, state.translation.edition,
+          );
+
+      final slides = buildSlides(
+        ayahs,
+        surahName,
+        includeBismillah: state.includeBismillah,
+        showAyahNumber: state.showAyahNumber,
+      );
+
+      notifier.setAyahRange(1, to, slides);
+      notifier.setBackground(BackgroundItem.solidColor('#0A0E1A'));
+
+      if (!mounted) return;
+      context.push('/customize');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Could not load surah. Check your connection.',
+            style: GoogleFonts.outfit(),
+          ),
+          backgroundColor: AppColors.bgCardLight,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10)),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _loadingSurahOfDay = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,6 +82,27 @@ class HomeScreen extends StatelessWidget {
           slivers: [
             // Hero
             const SliverToBoxAdapter(child: HeroHeader()),
+
+            // Surah of the Day
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(
+                  top: AppSpacing.md,
+                  bottom: AppSpacing.sm,
+                ),
+                child: _loadingSurahOfDay
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: CircularProgressIndicator(
+                              color: AppColors.primary),
+                        ),
+                      )
+                    : SurahOfTheDay(
+                        onTap: _onSurahOfDayTapped,
+                      ),
+              ),
+            ),
 
             // Section: Create
             SliverToBoxAdapter(child: _sectionTitle(context, 'Create')),

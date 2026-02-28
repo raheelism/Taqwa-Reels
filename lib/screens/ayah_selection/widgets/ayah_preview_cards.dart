@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -88,6 +89,37 @@ class _SlideCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      final text = '${slide.arabicText}\n\n${slide.translationText}\n\n— ${slide.slideLabel}';
+                      Clipboard.setData(ClipboardData(text: text));
+                      // Find the nearest ScaffoldMessenger
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Ayah copied to clipboard'),
+                          duration: Duration(seconds: 2),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      margin: const EdgeInsets.only(right: 6),
+                      decoration: const BoxDecoration(
+                        color: AppColors.bgCardLight,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.copy_rounded,
+                        size: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
               GestureDetector(
                 onTap: onTapAudio,
                 child: Container(
@@ -105,6 +137,8 @@ class _SlideCard extends StatelessWidget {
                     color: isPlaying ? AppColors.bg : AppColors.textSecondary,
                   ),
                 ),
+              ),
+                ],
               ),
             ],
           ),

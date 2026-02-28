@@ -148,8 +148,10 @@ class ReelPreviewCard extends ConsumerWidget {
                       state.watermarkText,
                       textAlign: TextAlign.center,
                       style: GoogleFonts.outfit(
-                        fontSize: 14 * scale,
-                        color: Colors.white.withAlpha(200),
+                        fontSize: state.exportOptions.watermarkFontSize * scale,
+                        color: Colors.white.withAlpha(
+                          (state.exportOptions.watermarkOpacity * 255).round(),
+                        ),
                         fontWeight: FontWeight.w600,
                         letterSpacing: 1.5,
                         shadows: [
@@ -172,19 +174,26 @@ class ReelPreviewCard extends ConsumerWidget {
   Widget _buildBackground(dynamic state, double blurRadius) {
     Widget bg;
     if (state.background != null) {
-      bg = state.background!.type == BackgroundType.image
-          ? CachedNetworkImage(
-              imageUrl: state.background!.fullUrl,
-              fit: BoxFit.cover,
-              placeholder: (_, __) => Container(color: AppColors.bgCard),
-              errorWidget: (_, __, ___) => Container(color: AppColors.bgCard),
-            )
-          : CachedNetworkImage(
-              imageUrl: state.background!.previewUrl,
-              fit: BoxFit.cover,
-              placeholder: (_, __) => Container(color: AppColors.bgCard),
-              errorWidget: (_, __, ___) => Container(color: AppColors.bgCard),
-            );
+      if (state.background!.type == BackgroundType.solidColor) {
+        // Solid color background
+        final hex = state.background!.solidColorHex ?? '#0A0E1A';
+        final color = Color(int.parse(hex.replaceFirst('#', '0xFF')));
+        bg = Container(color: color);
+      } else if (state.background!.type == BackgroundType.image) {
+        bg = CachedNetworkImage(
+            imageUrl: state.background!.fullUrl,
+            fit: BoxFit.cover,
+            placeholder: (_, __) => Container(color: AppColors.bgCard),
+            errorWidget: (_, __, ___) => Container(color: AppColors.bgCard),
+          );
+      } else {
+        bg = CachedNetworkImage(
+            imageUrl: state.background!.previewUrl,
+            fit: BoxFit.cover,
+            placeholder: (_, __) => Container(color: AppColors.bgCard),
+            errorWidget: (_, __, ___) => Container(color: AppColors.bgCard),
+          );
+      }
     } else {
       bg = Container(
         decoration: const BoxDecoration(

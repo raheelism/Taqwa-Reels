@@ -66,13 +66,19 @@ class VideoExportService {
         progress: 0.0,
       ),
     );
-    final bgExt = state.background!.type == BackgroundType.video
-        ? 'mp4'
-        : 'jpg';
-    final bgPath = await _downloadFile(
-      state.background!.fullUrl,
-      '$tmp/background.$bgExt',
-    );
+    String bgPath;
+    if (state.background!.type == BackgroundType.solidColor) {
+      // Solid color — no download needed, create a placeholder path
+      bgPath = '$tmp/background.jpg';
+    } else {
+      final bgExt = state.background!.type == BackgroundType.video
+          ? 'mp4'
+          : 'jpg';
+      bgPath = await _downloadFile(
+        state.background!.fullUrl,
+        '$tmp/background.$bgExt',
+      );
+    }
 
     // ── Phase 2: Download audio ──
     final uniqueAyahs = state.slides.map((s) => s.ayahNumber).toSet().toList();
@@ -226,27 +232,41 @@ class VideoExportService {
       );
     }
 
-    final cmd = state.background!.type == BackgroundType.video
-        ? _buildVideoBackgroundCommand(
-            bgPath: effectiveBgPath,
-            audioPath: mergedAudioPath,
-            slidePngs: slidePngs,
-            slideDurations: slideDurations,
-            totalDuration: effectiveTotalDuration,
-            state: state,
-            outputPath: outputPath,
-            opts: opts,
-          )
-        : _buildImageBackgroundCommand(
-            bgPath: bgPath,
-            audioPath: mergedAudioPath,
-            slidePngs: slidePngs,
-            slideDurations: slideDurations,
-            totalDuration: effectiveTotalDuration,
-            state: state,
-            outputPath: outputPath,
-            opts: opts,
-          );
+    String cmd;
+    if (state.background!.type == BackgroundType.video) {
+      cmd = _buildVideoBackgroundCommand(
+        bgPath: effectiveBgPath,
+        audioPath: mergedAudioPath,
+        slidePngs: slidePngs,
+        slideDurations: slideDurations,
+        totalDuration: effectiveTotalDuration,
+        state: state,
+        outputPath: outputPath,
+        opts: opts,
+      );
+    } else if (state.background!.type == BackgroundType.solidColor) {
+      cmd = _buildSolidColorBackgroundCommand(
+        colorHex: state.background!.solidColorHex ?? '#0A0E1A',
+        audioPath: mergedAudioPath,
+        slidePngs: slidePngs,
+        slideDurations: slideDurations,
+        totalDuration: effectiveTotalDuration,
+        state: state,
+        outputPath: outputPath,
+        opts: opts,
+      );
+    } else {
+      cmd = _buildImageBackgroundCommand(
+        bgPath: bgPath,
+        audioPath: mergedAudioPath,
+        slidePngs: slidePngs,
+        slideDurations: slideDurations,
+        totalDuration: effectiveTotalDuration,
+        state: state,
+        outputPath: outputPath,
+        opts: opts,
+      );
+    }
 
     // Track FFmpeg progress via statistics callback
     FFmpegKitConfig.enableStatisticsCallback((stats) {
@@ -288,6 +308,11 @@ class VideoExportService {
       await FFmpegKit.execute(
         '-y -i "$effectiveBgPath" -ss $thumbTime -vframes 1 -vf "scale=${opts.width}:${opts.height}:force_original_aspect_ratio=increase,crop=${opts.width}:${opts.height}" "$thumbPath"',
       );
+    } else if (state.background!.type == BackgroundType.solidColor) {
+      final hex = (state.background!.solidColorHex ?? '#0A0E1A').replaceFirst('#', '');
+      await FFmpegKit.execute(
+        '-y -f lavfi -i "color=c=0x$hex:s=${opts.width}x${opts.height}:d=1" -vframes 1 "$thumbPath"',
+      );
     } else {
       await FFmpegKit.execute(
         '-y -i "$bgPath" -vframes 1 -vf "scale=${opts.width}:${opts.height}:force_original_aspect_ratio=increase,crop=${opts.width}:${opts.height}" "$thumbPath"',
@@ -308,7 +333,10 @@ class VideoExportService {
       'backgroundDuration': state.background?.duration,
       'backgroundType': state.background?.type == BackgroundType.video
           ? 'video'
-          : 'image',
+          : state.background?.type == BackgroundType.solidColor
+              ? 'solidColor'
+              : 'image',
+      'solidColorHex': state.background?.solidColorHex,
       // Text options
       'fontId': state.font.id,
       'textColor': state.textColor,
@@ -320,6 +348,7 @@ class VideoExportService {
       'includeBismillah': state.includeBismillah,
       'showAyahNumber': state.showAyahNumber,
       'watermarkText': state.watermarkText,
+      'translationId': state.translation.id,
     });
 
     final box = Hive.box<GeneratedVideo>('videos');
@@ -538,6 +567,60 @@ class VideoExportService {
 
     final inputs = [
       '-loop 1 -i "$bgPath"',
+      '-i "$audioPath"',
+      ...slidePngs.map((p) => '-i "$p"'),
+    ];
+
+    final crf = opts.videoQuality.crf;
+
+    return [
+      '-y',
+      ...inputs,
+      '-t $totalDuration',
+      '-filter_complex',
+      '"$filterComplex"',
+      '-map "[v]" -map 1:a',
+      '-c:v libx264 -preset ultrafast -crf $crf',
+      '-c:a aac -b:a 128k',
+      '-pix_fmt yuv420p',
+      if (opts.audioFadeOut) '-af "afade=t=out:st=${totalDuration - 1}:d=1"',
+      '-shortest',
+      '-movflags +faststart',
+      '"$outputPath"',
+    ].where((s) => s.isNotEmpty).join(' ');
+  }
+
+  /// Build FFmpeg command using a solid-color background (no file input).
+  String _buildSolidColorBackgroundCommand({
+    required String colorHex,
+    required String audioPath,
+    required List<String> slidePngs,
+    required List<double> slideDurations,
+    required double totalDuration,
+    required ReelState state,
+    required String outputPath,
+    required ExportOptions opts,
+  }) {
+    final w = opts.width;
+    final h = opts.height;
+    final hex = colorHex.replaceFirst('#', '');
+
+    final dimAlpha = state.dimOpacity.toStringAsFixed(2);
+
+    // Solid color source → dim → [bg]
+    final bgChain =
+        '[0:v]format=yuva420p,'
+        'drawbox=c=black@$dimAlpha:t=fill[bg]';
+
+    final filterComplex = _buildOverlayFilterChain(
+      slidePngs: slidePngs,
+      slideDurations: slideDurations,
+      bgFilterChain: bgChain,
+      introOffset: opts.introPadding,
+    );
+
+    final inputs = [
+      '-f lavfi -i "color=c=0x$hex:s=${w}x$h:d=$totalDuration:r=30"',
       '-i "$audioPath"',
       ...slidePngs.map((p) => '-i "$p"'),
     ];

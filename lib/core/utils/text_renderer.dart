@@ -126,9 +126,10 @@ class TextRenderer {
     // Watermark
     if (state.watermarkText.isNotEmpty &&
         state.exportOptions.watermarkPosition != WatermarkPosition.hidden) {
+      final wmAlpha = (state.exportOptions.watermarkOpacity * 255).round();
       final wmStyle = GoogleFonts.outfit(
-        fontSize: 18 * scale,
-        color: Colors.white.withAlpha(200),
+        fontSize: state.exportOptions.watermarkFontSize * scale,
+        color: Colors.white.withAlpha(wmAlpha),
         fontWeight: FontWeight.w600,
         letterSpacing: 1.5,
         shadows: [Shadow(blurRadius: 4 * scale, color: Colors.black54)],

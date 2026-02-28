@@ -7,6 +7,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../data/constants/backgrounds.dart';
 import '../../data/models/background_item.dart';
 import '../../data/services/pixabay_service.dart';
+import '../../data/services/recent_backgrounds_service.dart';
 import '../../state/reel_provider.dart';
 import '../shared/step_indicator.dart';
 import 'widgets/background_grid_item.dart';
@@ -36,7 +37,10 @@ class _BackgroundScreenState extends ConsumerState<BackgroundScreen>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 2, vsync: this);
+    _tabCtrl = TabController(length: 3, vsync: this);
+    _tabCtrl.addListener(() {
+      if (mounted) setState(() {});
+    });
     _imgScroll.addListener(_onImageScroll);
     _vidScroll.addListener(_onVideoScroll);
     _loadImages();
@@ -123,6 +127,7 @@ class _BackgroundScreenState extends ConsumerState<BackgroundScreen>
 
   void _selectBackground(BackgroundItem item) {
     ref.read(reelProvider.notifier).setBackground(item);
+    RecentBackgroundsService.add(item);
     setState(() {});
   }
 
@@ -171,6 +176,7 @@ class _BackgroundScreenState extends ConsumerState<BackgroundScreen>
                     fontWeight: FontWeight.w600,
                   ),
                   tabs: const [
+                    Tab(text: 'Solid Color'),
                     Tab(text: 'Images'),
                     Tab(text: 'Videos'),
                   ],
@@ -179,19 +185,88 @@ class _BackgroundScreenState extends ConsumerState<BackgroundScreen>
             ),
             const SizedBox(height: AppSpacing.sm),
 
-            // Category chips
-            CategoryChips(
-              categories: kBackgroundCategories,
-              selected: _selectedCategory,
-              onChanged: _onCategoryChanged,
-            ),
-            const SizedBox(height: AppSpacing.sm),
+            // Recent backgrounds
+            if (RecentBackgroundsService.count > 0)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                    child: Text(
+                      'Recent',
+                      style: GoogleFonts.outfit(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    height: 56,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                      itemCount: RecentBackgroundsService.getAll().length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemBuilder: (_, i) {
+                        final item = RecentBackgroundsService.getAll()[i];
+                        final isSelected = selectedBg?.id == item.id &&
+                            selectedBg?.type == item.type;
+                        return GestureDetector(
+                          onTap: () => _selectBackground(item),
+                          child: Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : Colors.white.withAlpha(30),
+                                width: isSelected ? 2 : 1,
+                              ),
+                              color: item.type == BackgroundType.solidColor
+                                  ? Color(int.parse(
+                                      (item.solidColorHex ?? '#0A0E1A')
+                                          .replaceFirst('#', '0xFF')))
+                                  : AppColors.bgCard,
+                              image: item.type != BackgroundType.solidColor &&
+                                      item.previewUrl.isNotEmpty
+                                  ? DecorationImage(
+                                      image: NetworkImage(item.previewUrl),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null,
+                            ),
+                            child: isSelected
+                                ? const Icon(Icons.check, color: AppColors.primary, size: 18)
+                                : null,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                ],
+              ),
+
+            // Category chips — hidden on solid color tab
+            if (_tabCtrl.index != 0) ...[
+              CategoryChips(
+                categories: kBackgroundCategories,
+                selected: _selectedCategory,
+                onChanged: _onCategoryChanged,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
 
             // Grid
             Expanded(
               child: TabBarView(
                 controller: _tabCtrl,
                 children: [
+                  _buildSolidColorGrid(selectedBg),
                   _buildGrid(
                     _images,
                     _loadingImages,
@@ -272,6 +347,70 @@ class _BackgroundScreenState extends ConsumerState<BackgroundScreen>
           isSelected: selectedBg?.id == item.id,
           isVideo: isVideo,
           onTap: () => _selectBackground(item),
+        );
+      },
+    );
+  }
+
+  // ── Preset solid colors ──
+  static const _solidColorPresets = <String>[
+    '#0A0E1A', // Dark Navy
+    '#1A2040', // Night Blue
+    '#0D253F', // Deep Ocean
+    '#1B4332', // Forest Green
+    '#2D1B4E', // Royal Purple
+    '#3B1A1A', // Dark Burgundy
+    '#4A3000', // Dark Amber
+    '#1A3A5C', // Steel Blue
+    '#0F172A', // Slate
+    '#18181B', // Charcoal
+    '#1C1917', // Warm Black
+    '#000000', // Pure Black
+    '#0C4A6E', // Ocean Blue
+    '#134E4A', // Teal
+    '#3F3F46', // Zinc
+    '#292524', // Stone
+  ];
+
+  Widget _buildSolidColorGrid(BackgroundItem? selectedBg) {
+    return GridView.builder(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 4,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childAspectRatio: 1.0,
+      ),
+      itemCount: _solidColorPresets.length,
+      itemBuilder: (_, i) {
+        final hex = _solidColorPresets[i];
+        final color = Color(int.parse(hex.replaceFirst('#', '0xFF')));
+        final isSelected = selectedBg?.type == BackgroundType.solidColor &&
+            selectedBg?.solidColorHex == hex;
+
+        return GestureDetector(
+          onTap: () => _selectBackground(BackgroundItem.solidColor(hex)),
+          child: Container(
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              border: Border.all(
+                color: isSelected
+                    ? AppColors.primary
+                    : Colors.white.withAlpha(30),
+                width: isSelected ? 3 : 1,
+              ),
+            ),
+            child: isSelected
+                ? const Center(
+                    child: Icon(
+                      Icons.check_circle_rounded,
+                      color: AppColors.primary,
+                      size: 28,
+                    ),
+                  )
+                : null,
+          ),
         );
       },
     );

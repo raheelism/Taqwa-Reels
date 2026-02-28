@@ -108,6 +108,8 @@ class ExportOptions {
   final double outroPadding; // seconds of silence after last ayah
   final double bgSlowMo; // 0.5–1.0 (1.0 = normal speed)
   final WatermarkPosition watermarkPosition;
+  final double watermarkFontSize; // 10–28 (default 14)
+  final double watermarkOpacity; // 0.3–1.0 (default 0.78)
   final double translationFontScale; // multiplier vs Arabic size (default 0.52)
 
   const ExportOptions({
@@ -123,6 +125,8 @@ class ExportOptions {
     this.outroPadding = 0.0,
     this.bgSlowMo = 1.0,
     this.watermarkPosition = WatermarkPosition.topCenter,
+    this.watermarkFontSize = 14.0,
+    this.watermarkOpacity = 0.78,
     this.translationFontScale = 0.52,
   });
 
@@ -139,6 +143,8 @@ class ExportOptions {
     double? outroPadding,
     double? bgSlowMo,
     WatermarkPosition? watermarkPosition,
+    double? watermarkFontSize,
+    double? watermarkOpacity,
     double? translationFontScale,
   }) =>
       ExportOptions(
@@ -154,6 +160,8 @@ class ExportOptions {
         outroPadding: outroPadding ?? this.outroPadding,
         bgSlowMo: bgSlowMo ?? this.bgSlowMo,
         watermarkPosition: watermarkPosition ?? this.watermarkPosition,
+        watermarkFontSize: watermarkFontSize ?? this.watermarkFontSize,
+        watermarkOpacity: watermarkOpacity ?? this.watermarkOpacity,
         translationFontScale: translationFontScale ?? this.translationFontScale,
       );
 
@@ -170,6 +178,8 @@ class ExportOptions {
     'outroPadding': outroPadding,
     'bgSlowMo': bgSlowMo,
     'watermarkPosition': watermarkPosition.name,
+    'watermarkFontSize': watermarkFontSize,
+    'watermarkOpacity': watermarkOpacity,
     'translationFontScale': translationFontScale,
   };
 
@@ -209,6 +219,10 @@ class ExportOptions {
         (e) => e.name == json['watermarkPosition'],
         orElse: () => WatermarkPosition.topCenter,
       ),
+      watermarkFontSize:
+          (json['watermarkFontSize'] as num?)?.toDouble() ?? 14.0,
+      watermarkOpacity:
+          (json['watermarkOpacity'] as num?)?.toDouble() ?? 0.78,
       translationFontScale:
           (json['translationFontScale'] as num?)?.toDouble() ?? 0.52,
     );

@@ -69,7 +69,11 @@ class _VideoDetailScreenState extends ConsumerState<VideoDetailScreen> {
 
       // Attempt to resolve the background if we have an ID
       BackgroundItem? bg;
-      if (metadata['backgroundId'] != null) {
+      if (metadata['backgroundType'] == 'solidColor') {
+        bg = BackgroundItem.solidColor(
+          metadata['solidColorHex'] as String? ?? '#0A0E1A',
+        );
+      } else if (metadata['backgroundId'] != null) {
         try {
           final isVideo = metadata['backgroundType'] == 'video';
           final durationVal = metadata['backgroundDuration'];
@@ -127,8 +131,12 @@ class _VideoDetailScreenState extends ConsumerState<VideoDetailScreen> {
         reciter: metadata['reciter'] != null
             ? Reciter.fromJson(metadata['reciter'])
             : kReciters.first,
-        translation: kTranslations
-            .first, // Translation logic not fully serialized yet, fallback to first
+        translation: metadata['translationId'] != null
+            ? kTranslations.firstWhere(
+                (t) => t.id == metadata['translationId'],
+                orElse: () => kTranslations.first,
+              )
+            : kTranslations.first,
         background: bg,
         exportOptions: metadata['exportOptions'] != null
             ? ExportOptions.fromJson(metadata['exportOptions'])
@@ -269,6 +277,15 @@ class _VideoDetailScreenState extends ConsumerState<VideoDetailScreen> {
                       label: 'Edit Again',
                       onTap: _editAgain,
                     ),
+              _ActionButton(
+                icon: Icons.copy_all_rounded,
+                label: 'Duplicate',
+                onTap: () async {
+                  await _editAgain();
+                  // _editAgain already restores state & navigates — 
+                  // "Duplicate" just means "edit a copy" (original stays in gallery)
+                },
+              ),
               _ActionButton(
                 icon: Icons.share_rounded,
                 label: 'Share',
