@@ -5,6 +5,9 @@ import 'app.dart';
 import 'data/models/generated_video.dart';
 import 'data/services/favorites_service.dart';
 import 'data/services/recent_backgrounds_service.dart';
+import 'data/services/stats_service.dart';
+import 'data/services/bookmark_service.dart';
+import 'data/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,6 +17,9 @@ void main() async {
   await Hive.openBox<GeneratedVideo>('videos');
   await FavoritesService.init();
   await RecentBackgroundsService.init();
+  await StatsService.init();
+  await BookmarkService.init();
+  await NotificationService.init();
 
   runApp(const ProviderScope(child: TaqwaReelsApp()));
 }

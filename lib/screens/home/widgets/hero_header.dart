@@ -71,13 +71,34 @@ class HeroHeader extends StatelessWidget {
             Positioned(
               top: 10,
               right: 16,
-              child: IconButton(
-                icon: const Icon(
-                  Icons.video_library_rounded,
-                  color: Colors.white70,
-                ),
-                tooltip: 'Gallery',
-                onPressed: () => context.push('/gallery'),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.bookmark_rounded,
+                      color: Colors.white70,
+                    ),
+                    tooltip: 'Bookmarks',
+                    onPressed: () => context.push('/bookmarks'),
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.bar_chart_rounded,
+                      color: Colors.white70,
+                    ),
+                    tooltip: 'Stats',
+                    onPressed: () => context.push('/stats'),
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.video_library_rounded,
+                      color: Colors.white70,
+                    ),
+                    tooltip: 'Gallery',
+                    onPressed: () => context.push('/gallery'),
+                  ),
+                ],
               ),
             ),
           ],

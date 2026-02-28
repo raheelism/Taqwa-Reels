@@ -11,6 +11,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/utils/text_renderer.dart';
 import '../../data/models/background_item.dart';
 import '../../data/services/video_export_service.dart';
+import '../../data/services/stats_service.dart';
 import '../../state/reel_provider.dart';
 import '../shared/reel_preview_card.dart';
 import '../shared/step_indicator.dart';
@@ -162,6 +163,7 @@ class _PreviewExportScreenState extends ConsumerState<PreviewExportScreen> {
 
       // Save to gallery
       await Gal.putImage(outputPath, album: 'TaqwaReels');
+      StatsService.incrementImages();
 
       if (!mounted) return;
       setState(() => _exportingImage = false);

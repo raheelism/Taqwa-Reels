@@ -8,6 +8,7 @@ import 'package:video_player/video_player.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../state/reel_provider.dart';
+import '../../../data/services/stats_service.dart';
 
 /// Bottom sheet shown after a successful video export.
 void showExportSuccessSheet(
@@ -133,6 +134,7 @@ class _SuccessSheetContentState extends State<_SuccessSheetContent> {
                       await SharePlus.instance.share(
                         ShareParams(files: [XFile(widget.path!)]),
                       );
+                      StatsService.incrementShares();
                     }
                   },
                   icon: const Icon(

@@ -9,12 +9,16 @@ import 'screens/customize/customize_screen.dart';
 import 'screens/preview_export/preview_export_screen.dart';
 import 'screens/gallery/gallery_screen.dart';
 import 'screens/gallery/video_detail_screen.dart';
+import 'screens/stats/stats_screen.dart';
+import 'screens/bookmarks/bookmarks_screen.dart';
 
 final _router = GoRouter(
   initialLocation: '/',
   routes: [
     GoRoute(path: '/', builder: (_, __) => const SplashScreen()),
     GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
+    GoRoute(path: '/stats', builder: (_, __) => const StatsScreen()),
+    GoRoute(path: '/bookmarks', builder: (_, __) => const BookmarksScreen()),
     GoRoute(
       path: '/quran-reels',
       builder: (_, __) => const AyahSelectionScreen(),

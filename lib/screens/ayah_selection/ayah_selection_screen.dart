@@ -9,6 +9,7 @@ import '../../data/models/surah.dart';
 import '../../data/services/audio_service.dart';
 import '../../data/services/quran_api_service.dart';
 import '../../data/services/favorites_service.dart';
+import '../../data/services/bookmark_service.dart';
 import '../../state/reel_provider.dart';
 import '../shared/section_header.dart';
 import '../shared/step_indicator.dart';
@@ -332,7 +333,79 @@ class _AyahSelectionScreenState extends ConsumerState<AyahSelectionScreen> {
                     onSelect: _selectSurah,
                   ),
 
-                  if (_selectedSurah != null) ...[
+                  if (_selectedSurah != null) ...[                    const SizedBox(height: AppSpacing.sm),
+
+                    // ── Bookmark toggle ──
+                    GestureDetector(
+                      onTap: () {
+                        final nowBookmarked = BookmarkService.toggleBookmark(
+                          surahNumber: _selectedSurah!.number,
+                          surahName: _selectedSurah!.englishName,
+                          totalAyahs: _selectedSurah!.numberOfAyahs,
+                        );
+                        setState(() {});
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              nowBookmarked
+                                  ? '${_selectedSurah!.englishName} bookmarked — track your progress!'
+                                  : 'Bookmark removed',
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: BookmarkService.isBookmarked(
+                                  _selectedSurah!.number)
+                              ? AppColors.primary.withAlpha(15)
+                              : AppColors.bgCard,
+                          borderRadius:
+                              BorderRadius.circular(AppSpacing.radiusMd),
+                          border: Border.all(
+                            color: BookmarkService.isBookmarked(
+                                    _selectedSurah!.number)
+                                ? AppColors.primary.withAlpha(80)
+                                : Colors.white.withAlpha(15),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              BookmarkService.isBookmarked(
+                                      _selectedSurah!.number)
+                                  ? Icons.bookmark_rounded
+                                  : Icons.bookmark_add_outlined,
+                              color: BookmarkService.isBookmarked(
+                                      _selectedSurah!.number)
+                                  ? AppColors.primary
+                                  : AppColors.textSecondary,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              BookmarkService.isBookmarked(
+                                      _selectedSurah!.number)
+                                  ? 'Bookmarked — ${(BookmarkService.getProgress(_selectedSurah!.number) * 100).round()}% done'
+                                  : 'Bookmark this Surah',
+                              style: TextStyle(
+                                color: BookmarkService.isBookmarked(
+                                        _selectedSurah!.number)
+                                    ? AppColors.primary
+                                    : AppColors.textSecondary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: AppSpacing.lg),
 
                     // ── Range ──

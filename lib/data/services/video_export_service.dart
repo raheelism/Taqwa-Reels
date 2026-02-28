@@ -13,6 +13,8 @@ import '../models/export_options.dart';
 import '../models/generated_video.dart';
 import '../../state/reel_state.dart';
 import 'audio_service.dart';
+import 'stats_service.dart';
+import 'bookmark_service.dart';
 
 // ── Progress Reporting ──
 
@@ -362,6 +364,21 @@ class VideoExportService {
         metadataJson: metadataJson,
       ),
     );
+
+    // Track stats & bookmark progress
+    StatsService.incrementReels();
+    if (state.fromAyah != null && state.toAyah != null) {
+      StatsService.addAyahs(state.toAyah! - state.fromAyah! + 1);
+      if (state.surahNumber != null) {
+        BookmarkService.recordProgress(
+          surahNumber: state.surahNumber!,
+          surahName: state.surahName,
+          totalAyahs: state.slides.length, // approximate
+          fromAyah: state.fromAyah!,
+          toAyah: state.toAyah!,
+        );
+      }
+    }
 
     onProgress(
       const ExportProgress(
