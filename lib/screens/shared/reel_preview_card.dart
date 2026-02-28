@@ -1,9 +1,11 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/background_item.dart';
+import '../../data/models/export_options.dart';
 import '../../state/reel_provider.dart';
 
 /// Shared live preview card used on both the Customize and Preview screens.
@@ -16,9 +18,11 @@ class ReelPreviewCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(reelProvider);
     final slide = ref.watch(currentSlideProvider);
+    final ratio = state.exportOptions.width / state.exportOptions.height;
+
     if (slide == null) {
       return AspectRatio(
-        aspectRatio: 9 / 16,
+        aspectRatio: ratio,
         child: Container(
           decoration: BoxDecoration(
             color: AppColors.bgCard,
@@ -40,7 +44,7 @@ class ReelPreviewCard extends ConsumerWidget {
     final yFrac = state.textPosition; // 0.0 top → 1.0 bottom
 
     return AspectRatio(
-      aspectRatio: 9 / 16,
+      aspectRatio: ratio,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: LayoutBuilder(
@@ -52,35 +56,8 @@ class ReelPreviewCard extends ConsumerWidget {
             return Stack(
               fit: StackFit.expand,
               children: [
-                // Background
-                if (state.background != null)
-                  state.background!.type == BackgroundType.image
-                      ? CachedNetworkImage(
-                          imageUrl: state.background!.fullUrl,
-                          fit: BoxFit.cover,
-                          placeholder: (_, __) =>
-                              Container(color: AppColors.bgCard),
-                          errorWidget: (_, __, ___) =>
-                              Container(color: AppColors.bgCard),
-                        )
-                      : CachedNetworkImage(
-                          imageUrl: state.background!.previewUrl,
-                          fit: BoxFit.cover,
-                          placeholder: (_, __) =>
-                              Container(color: AppColors.bgCard),
-                          errorWidget: (_, __, ___) =>
-                              Container(color: AppColors.bgCard),
-                        )
-                else
-                  Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Color(0xFF1A2040), Color(0xFF0A0E1A)],
-                      ),
-                    ),
-                  ),
+                // Background (with optional blur preview)
+                _buildBackground(state, state.exportOptions.backgroundBlur),
 
                 // Dim overlay
                 Container(
@@ -127,7 +104,9 @@ class ReelPreviewCard extends ConsumerWidget {
                               slide.translationText,
                               textAlign: TextAlign.center,
                               style: GoogleFonts.outfit(
-                                fontSize: state.fontSize * 0.52 * scale,
+                                fontSize: state.fontSize *
+                                    state.exportOptions.translationFontScale *
+                                    scale,
                                 color: textColor.withAlpha(217),
                                 fontStyle: FontStyle.italic,
                               ),
@@ -150,10 +129,19 @@ class ReelPreviewCard extends ConsumerWidget {
                   ),
                 ),
 
-                // Watermark (top center)
-                if (state.watermarkText.isNotEmpty)
+                // Watermark
+                if (state.watermarkText.isNotEmpty &&
+                    state.exportOptions.watermarkPosition !=
+                        WatermarkPosition.hidden)
                   Positioned(
-                    top: 24 * scale,
+                    top: state.exportOptions.watermarkPosition ==
+                            WatermarkPosition.topCenter
+                        ? 24 * scale
+                        : null,
+                    bottom: state.exportOptions.watermarkPosition ==
+                            WatermarkPosition.bottomCenter
+                        ? 24 * scale
+                        : null,
                     left: 0,
                     right: 0,
                     child: Text(
@@ -165,7 +153,9 @@ class ReelPreviewCard extends ConsumerWidget {
                         fontWeight: FontWeight.w600,
                         letterSpacing: 1.5,
                         shadows: [
-                          Shadow(blurRadius: 4 * scale, color: Colors.black54),
+                          Shadow(
+                              blurRadius: 4 * scale,
+                              color: Colors.black54),
                         ],
                       ),
                     ),
@@ -176,5 +166,47 @@ class ReelPreviewCard extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// Background widget with optional blur applied via ImageFilter.
+  Widget _buildBackground(dynamic state, double blurRadius) {
+    Widget bg;
+    if (state.background != null) {
+      bg = state.background!.type == BackgroundType.image
+          ? CachedNetworkImage(
+              imageUrl: state.background!.fullUrl,
+              fit: BoxFit.cover,
+              placeholder: (_, __) => Container(color: AppColors.bgCard),
+              errorWidget: (_, __, ___) => Container(color: AppColors.bgCard),
+            )
+          : CachedNetworkImage(
+              imageUrl: state.background!.previewUrl,
+              fit: BoxFit.cover,
+              placeholder: (_, __) => Container(color: AppColors.bgCard),
+              errorWidget: (_, __, ___) => Container(color: AppColors.bgCard),
+            );
+    } else {
+      bg = Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF1A2040), Color(0xFF0A0E1A)],
+          ),
+        ),
+      );
+    }
+
+    if (blurRadius > 0) {
+      return ImageFiltered(
+        imageFilter: ui.ImageFilter.blur(
+          sigmaX: blurRadius * 0.5,
+          sigmaY: blurRadius * 0.5,
+          tileMode: TileMode.clamp,
+        ),
+        child: bg,
+      );
+    }
+    return bg;
   }
 }

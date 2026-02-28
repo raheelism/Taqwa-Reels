@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../data/models/reel_slide.dart';
+import '../../data/models/export_options.dart';
 import '../../state/reel_state.dart';
 
 /// Renders slide text to transparent PNG images using Flutter's text engine.
@@ -42,8 +43,10 @@ class TextRenderer {
           : null,
     );
 
+    final trScale = state.exportOptions.translationFontScale;
+
     final trStyle = GoogleFonts.outfit(
-      fontSize: state.fontSize * 0.52 * scale,
+      fontSize: state.fontSize * trScale * scale,
       color: textColor.withAlpha(217),
       fontStyle: FontStyle.italic,
     );
@@ -120,8 +123,9 @@ class TextRenderer {
     final refX = (w - refPainter.width) / 2;
     refPainter.paint(canvas, Offset(refX, currentY));
 
-    // Watermark at top
-    if (state.watermarkText.isNotEmpty) {
+    // Watermark
+    if (state.watermarkText.isNotEmpty &&
+        state.exportOptions.watermarkPosition != WatermarkPosition.hidden) {
       final wmStyle = GoogleFonts.outfit(
         fontSize: 18 * scale,
         color: Colors.white.withAlpha(200),
@@ -137,7 +141,11 @@ class TextRenderer {
       );
       wmPainter.layout(maxWidth: maxTextWidth);
       final wmX = (w - wmPainter.width) / 2;
-      wmPainter.paint(canvas, Offset(wmX, 30 * scale));
+      final wmY = state.exportOptions.watermarkPosition ==
+              WatermarkPosition.topCenter
+          ? 30 * scale
+          : h - wmPainter.height - 30 * scale;
+      wmPainter.paint(canvas, Offset(wmX, wmY));
     }
 
     // ── Save as PNG ──

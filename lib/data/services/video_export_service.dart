@@ -123,7 +123,9 @@ class VideoExportService {
 
     final totalDuration = slideDurations.fold(0.0, (a, b) => a + b);
 
-    // ── Phase 5: Merge audio ──
+    final opts = state.exportOptions;
+
+    // ── Phase 5: Merge audio (with optional intro/outro padding) ──
     final orderedAyahs = <int>[];
     for (final s in state.slides) {
       if (!orderedAyahs.contains(s.ayahNumber)) {
@@ -136,16 +138,35 @@ class VideoExportService {
     final audioConcatPath = '$tmp/audio_list.txt';
     await File(audioConcatPath).writeAsString(audioConcatContent);
 
-    final mergedAudioPath = '$tmp/merged.mp3';
+    final rawMergedPath = '$tmp/merged_raw.mp3';
     final audioSession = await FFmpegKit.execute(
-      '-y -f concat -safe 0 -i "$audioConcatPath" -c copy "$mergedAudioPath"',
+      '-y -f concat -safe 0 -i "$audioConcatPath" -c copy "$rawMergedPath"',
     );
     if (!ReturnCode.isSuccess(await audioSession.getReturnCode())) {
       throw Exception('Audio merge failed: ${await audioSession.getOutput()}');
     }
 
+    // Apply intro / outro silence padding if configured
+    final intro = opts.introPadding;
+    final outro = opts.outroPadding;
+    final mergedAudioPath = '$tmp/merged.mp3';
+    if (intro > 0 || outro > 0) {
+      // adelay delays the audio, apad adds silence at the end
+      final delayMs = (intro * 1000).round();
+      final filters = <String>[];
+      if (intro > 0) filters.add('adelay=${delayMs}|${delayMs}');
+      if (outro > 0) filters.add('apad=pad_dur=${outro.toStringAsFixed(2)}');
+      await FFmpegKit.execute(
+        '-y -i "$rawMergedPath" -af "${filters.join(',')}" "$mergedAudioPath"',
+      );
+    } else {
+      // No padding, just rename
+      await File(rawMergedPath).copy(mergedAudioPath);
+    }
+
+    final effectiveTotalDuration = totalDuration + intro + outro;
+
     // ── Phase 6: Render text overlays as PNG images ──
-    final opts = state.exportOptions;
     onProgress(
       const ExportProgress(
         phase: ExportPhase.renderingTextOverlays,
@@ -196,10 +217,12 @@ class VideoExportService {
       );
       effectiveBgPath = await _preprocessBackgroundVideo(
         bgPath: bgPath,
-        totalDuration: totalDuration,
+        totalDuration: effectiveTotalDuration,
         width: opts.width,
         height: opts.height,
         tmpDir: tmp,
+        blurRadius: opts.backgroundBlur,
+        slowMo: opts.bgSlowMo,
       );
     }
 
@@ -209,7 +232,7 @@ class VideoExportService {
             audioPath: mergedAudioPath,
             slidePngs: slidePngs,
             slideDurations: slideDurations,
-            totalDuration: totalDuration,
+            totalDuration: effectiveTotalDuration,
             state: state,
             outputPath: outputPath,
             opts: opts,
@@ -219,7 +242,7 @@ class VideoExportService {
             audioPath: mergedAudioPath,
             slidePngs: slidePngs,
             slideDurations: slideDurations,
-            totalDuration: totalDuration,
+            totalDuration: effectiveTotalDuration,
             state: state,
             outputPath: outputPath,
             opts: opts,
@@ -232,9 +255,9 @@ class VideoExportService {
         ExportProgress(
           phase: ExportPhase.renderingVideo,
           label: 'Rendering video',
-          progress: 0.35 + (t / totalDuration).clamp(0, 1) * 0.55,
+          progress: 0.35 + (t / effectiveTotalDuration).clamp(0, 1) * 0.55,
           detail:
-              '${((t / totalDuration) * 100).clamp(0, 100).round()}% encoded',
+              '${((t / effectiveTotalDuration) * 100).clamp(0, 100).round()}% encoded',
         ),
       );
     });
@@ -259,9 +282,9 @@ class VideoExportService {
     // For images, we just scale it. For videos, we grab a frame at 3 seconds
     // to bypass typical Pixabay intro slates, or at 50% if the video is very short.
     if (state.background!.type == BackgroundType.video) {
-      final thumbTime = totalDuration > 10.0
+      final thumbTime = effectiveTotalDuration > 10.0
           ? '00:00:03.000'
-          : (totalDuration / 2).toStringAsFixed(3);
+          : (effectiveTotalDuration / 2).toStringAsFixed(3);
       await FFmpegKit.execute(
         '-y -i "$effectiveBgPath" -ss $thumbTime -vframes 1 -vf "scale=${opts.width}:${opts.height}:force_original_aspect_ratio=increase,crop=${opts.width}:${opts.height}" "$thumbPath"',
       );
@@ -364,13 +387,21 @@ class VideoExportService {
     required int width,
     required int height,
     required String tmpDir,
+    double blurRadius = 0.0,
+    double slowMo = 1.0,
   }) async {
     final processedPath = '$tmpDir/background_processed.mp4';
+    // Slow-mo: setpts=PTS*factor stretches video (factor > 1 = slower)
+    final ptsFactor = (1.0 / slowMo.clamp(0.25, 1.0)).toStringAsFixed(4);
+    // Blur filter (applied after scale/crop)
+    final blurFilter = blurRadius > 0
+        ? ',boxblur=${blurRadius.round()}:${blurRadius.round()}'
+        : '';
     final session = await FFmpegKit.execute(
       '-y -stream_loop -1 -i "$bgPath" -t $totalDuration '
-      '-vf "fps=30,setpts=PTS-STARTPTS,'
+      '-vf "fps=30,setpts=PTS*$ptsFactor,'
       'scale=$width:$height:force_original_aspect_ratio=increase,'
-      'crop=$width:$height,setsar=1" '
+      'crop=$width:$height,setsar=1$blurFilter" '
       '-vsync cfr -c:v libx264 -preset ultrafast -crf 23 -an "$processedPath"',
     );
     final rc = await session.getReturnCode();
@@ -388,11 +419,12 @@ class VideoExportService {
     required List<String> slidePngs,
     required List<double> slideDurations,
     required String bgFilterChain,
+    double introOffset = 0.0,
   }) {
     // bgFilterChain produces [bg] label
     final buf = StringBuffer(bgFilterChain);
 
-    double t = 0;
+    double t = introOffset;
     for (int i = 0; i < slidePngs.length; i++) {
       final inputIdx = i + 2; // inputs 0=bg, 1=audio, 2..N+1=slides
       final start = t.toStringAsFixed(3);
@@ -436,6 +468,7 @@ class VideoExportService {
       slidePngs: slidePngs,
       slideDurations: slideDurations,
       bgFilterChain: bgChain,
+      introOffset: opts.introPadding,
     );
 
     // Build input list — no -stream_loop, bgPath is already the right length
@@ -445,6 +478,8 @@ class VideoExportService {
       ...slidePngs.map((p) => '-i "$p"'),
     ];
 
+    final crf = opts.videoQuality.crf;
+
     return [
       '-y',
       ...inputs,
@@ -453,7 +488,7 @@ class VideoExportService {
       '"$filterComplex"',
       '-map "[v]" -map 1:a',
       '-vsync cfr',
-      '-c:v libx264 -preset ultrafast -crf 23',
+      '-c:v libx264 -preset ultrafast -crf $crf',
       '-c:a aac -b:a 128k',
       '-pix_fmt yuv420p',
       '-movflags +faststart',
@@ -478,6 +513,11 @@ class VideoExportService {
 
     final dimAlpha = state.dimOpacity.toStringAsFixed(2);
 
+    // Blur filter for image backgrounds
+    final blurFilter = opts.backgroundBlur > 0
+        ? ',boxblur=${opts.backgroundBlur.round()}:${opts.backgroundBlur.round()}'
+        : '';
+
     final kenBurns = opts.kenBurnsEffect
         ? "zoompan=z='min(zoom+0.0004,1.3)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
               'd=$totalFrames:s=${w}x$h:fps=$fps,'
@@ -486,13 +526,14 @@ class VideoExportService {
     // Background filter chain → produces [bg]
     final bgChain =
         '[0:v]$kenBurns'
-        'setsar=1,format=yuva420p,'
+        'setsar=1,format=yuva420p$blurFilter,'
         'drawbox=c=black@$dimAlpha:t=fill[bg]';
 
     final filterComplex = _buildOverlayFilterChain(
       slidePngs: slidePngs,
       slideDurations: slideDurations,
       bgFilterChain: bgChain,
+      introOffset: opts.introPadding,
     );
 
     final inputs = [
@@ -501,6 +542,8 @@ class VideoExportService {
       ...slidePngs.map((p) => '-i "$p"'),
     ];
 
+    final crf = opts.videoQuality.crf;
+
     return [
       '-y',
       ...inputs,
@@ -508,7 +551,7 @@ class VideoExportService {
       '-filter_complex',
       '"$filterComplex"',
       '-map "[v]" -map 1:a',
-      '-c:v libx264 -preset ultrafast -crf 23',
+      '-c:v libx264 -preset ultrafast -crf $crf',
       '-c:a aac -b:a 128k',
       '-pix_fmt yuv420p',
       if (opts.audioFadeOut) '-af "afade=t=out:st=${totalDuration - 1}:d=1"',
