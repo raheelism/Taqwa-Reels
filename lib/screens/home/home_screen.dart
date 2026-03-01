@@ -38,9 +38,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final to = totalAyahs > 3 ? 3 : totalAyahs;
       final state = ref.read(reelProvider);
 
-      final ayahs = await ref.read(quranApiProvider).fetchRange(
-            surahNumber, 1, to, state.translation.edition,
-          );
+      final ayahs = await ref
+          .read(quranApiProvider)
+          .fetchRange(surahNumber, 1, to, state.translation.edition);
 
       final slides = buildSlides(
         ayahs,
@@ -65,7 +65,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           backgroundColor: AppColors.bgCardLight,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10)),
+            borderRadius: BorderRadius.circular(10),
+          ),
           duration: const Duration(seconds: 3),
         ),
       );
@@ -95,12 +96,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         child: Padding(
                           padding: EdgeInsets.all(16),
                           child: CircularProgressIndicator(
-                              color: AppColors.primary),
+                            color: AppColors.primary,
+                          ),
                         ),
                       )
-                    : SurahOfTheDay(
-                        onTap: _onSurahOfDayTapped,
-                      ),
+                    : SurahOfTheDay(onTap: _onSurahOfDayTapped),
               ),
             ),
 
@@ -207,8 +207,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         title: 'Hadith Reels',
         subtitle: "Prophet's sayings",
         gradient: const [Color(0xFF2D1B4E), Color(0xFF1A0F30)],
-        isActive: false,
-        onTap: () => _showComingSoon(context),
+        isActive: true,
+        onTap: () => context.push('/hadith-reels'),
       ),
       CategoryCardData(
         icon: Icons.volunteer_activism_rounded,

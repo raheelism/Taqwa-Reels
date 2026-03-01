@@ -12,6 +12,7 @@ import 'screens/gallery/video_detail_screen.dart';
 import 'screens/stats/stats_screen.dart';
 import 'screens/bookmarks/bookmarks_screen.dart';
 import 'screens/dua/dua_screen.dart';
+import 'screens/hadith/hadith_screen.dart';
 
 final _router = GoRouter(
   initialLocation: '/',
@@ -21,6 +22,7 @@ final _router = GoRouter(
     GoRoute(path: '/stats', builder: (_, __) => const StatsScreen()),
     GoRoute(path: '/bookmarks', builder: (_, __) => const BookmarksScreen()),
     GoRoute(path: '/duas', builder: (_, __) => const DuaScreen()),
+    GoRoute(path: '/hadith-reels', builder: (_, __) => const HadithScreen()),
     GoRoute(
       path: '/quran-reels',
       builder: (_, __) => const AyahSelectionScreen(),
