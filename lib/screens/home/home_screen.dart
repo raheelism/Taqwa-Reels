@@ -215,8 +215,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         title: 'Dua Reels',
         subtitle: 'Supplications',
         gradient: const [Color(0xFF1B4332), Color(0xFF0B2B20)],
-        isActive: false,
-        onTap: () => _showComingSoon(context),
+        isActive: true,
+        onTap: () => context.push('/duas'),
       ),
       CategoryCardData(
         icon: Icons.brightness_5_rounded,

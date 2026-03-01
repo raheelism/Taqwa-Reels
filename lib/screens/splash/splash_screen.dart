@@ -2,7 +2,14 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/theme/app_colors.dart';
+import '../../data/models/generated_video.dart';
+import '../../data/services/favorites_service.dart';
+import '../../data/services/recent_backgrounds_service.dart';
+import '../../data/services/stats_service.dart';
+import '../../data/services/bookmark_service.dart';
+import '../../data/services/notification_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -108,10 +115,33 @@ class _SplashScreenState extends State<SplashScreen>
 
     _entryCtrl.forward();
 
-    // Navigate after splash
-    Future.delayed(const Duration(milliseconds: 3000), () {
-      if (mounted) context.go('/home');
-    });
+    // Run init & animation concurrently — navigate when BOTH are done
+    _initAndNavigate();
+  }
+
+  Future<void> _initAndNavigate() async {
+    // Start service init in parallel with the splash animation
+    final initFuture = _initServices();
+
+    // Minimum splash duration so animation completes
+    final minSplash = Future.delayed(const Duration(milliseconds: 1500));
+
+    // Wait for whichever takes longer
+    await Future.wait([initFuture, minSplash]);
+
+    if (mounted) context.go('/home');
+  }
+
+  /// Initialize all app services (runs DURING splash animation)
+  static Future<void> _initServices() async {
+    await Hive.openBox<GeneratedVideo>('videos');
+    await Future.wait([
+      FavoritesService.init(),
+      RecentBackgroundsService.init(),
+      StatsService.init(),
+      BookmarkService.init(),
+      NotificationService.init(),
+    ]);
   }
 
   @override

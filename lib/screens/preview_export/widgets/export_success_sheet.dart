@@ -160,7 +160,7 @@ class _SuccessSheetContentState extends State<_SuccessSheetContent> {
                   onPressed: () {
                     Navigator.pop(context);
                     widget.ref.read(reelProvider.notifier).reset();
-                    context.go('/');
+                    context.go('/home');
                   },
                   icon: const Icon(Icons.home_rounded),
                   label: const Text('Home'),
