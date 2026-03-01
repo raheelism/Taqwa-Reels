@@ -4,9 +4,18 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 
-/// Gradient hero header with app title, bismillah, and tagline.
+/// Premium hero header with Taqwa Feeds branding, greeting, and action icons.
 class HeroHeader extends StatelessWidget {
   const HeroHeader({super.key});
+
+  String get _greeting {
+    final hour = DateTime.now().hour;
+    if (hour < 6) return 'Assalamu Alaikum 🌙';
+    if (hour < 12) return 'Good Morning ☀️';
+    if (hour < 17) return 'Good Afternoon 🌤️';
+    if (hour < 21) return 'Good Evening 🌅';
+    return 'Assalamu Alaikum 🌙';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,70 +23,61 @@ class HeroHeader extends StatelessWidget {
       width: double.infinity,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF121835), AppColors.bg],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF121835), Color(0xFF0F1328), AppColors.bg],
         ),
       ),
       child: SafeArea(
         bottom: false,
-        child: Stack(
-          alignment: Alignment.center,
+        child: Column(
           children: [
+            // ── Top bar: logo + actions ──
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.xl,
-                AppSpacing.lg,
-                AppSpacing.lg,
+                AppSpacing.md,
+                AppSpacing.sm,
+                AppSpacing.sm,
+                0,
               ),
-              child: Column(
+              child: Row(
                 children: [
+                  // App logo
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [AppColors.primary, AppColors.primaryLight],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.mosque_rounded,
+                      color: Color(0xFF0A0E1A),
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
                   ShaderMask(
                     shaderCallback: (bounds) => const LinearGradient(
                       colors: [AppColors.primary, AppColors.primaryLight],
                     ).createShader(bounds),
                     child: Text(
-                      'TaqwaReels',
+                      'Taqwa Feeds',
                       style: GoogleFonts.outfit(
-                        fontSize: 36,
+                        fontSize: 22,
                         fontWeight: FontWeight.w900,
                         color: Colors.white,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ',
-                    style: GoogleFonts.amiri(
-                      fontSize: 22,
-                      color: AppColors.primary.withAlpha(200),
-                      height: 1.8,
-                    ),
-                    textDirection: TextDirection.rtl,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Create beautiful Islamic reels in seconds',
-                    style: GoogleFonts.outfit(
-                      fontSize: 15,
-                      color: AppColors.textSecondary,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Positioned(
-              top: 10,
-              right: 16,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+                  const Spacer(),
                   IconButton(
                     icon: const Icon(
                       Icons.bookmark_rounded,
-                      color: Colors.white70,
+                      color: Colors.white54,
+                      size: 22,
                     ),
                     tooltip: 'Bookmarks',
                     onPressed: () => context.push('/bookmarks'),
@@ -85,18 +85,52 @@ class HeroHeader extends StatelessWidget {
                   IconButton(
                     icon: const Icon(
                       Icons.bar_chart_rounded,
-                      color: Colors.white70,
+                      color: Colors.white54,
+                      size: 22,
                     ),
                     tooltip: 'Stats',
                     onPressed: () => context.push('/stats'),
                   ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.video_library_rounded,
-                      color: Colors.white70,
+                ],
+              ),
+            ),
+
+            // ── Greeting + Bismillah ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.md,
+                AppSpacing.lg,
+                AppSpacing.md,
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    _greeting,
+                    style: GoogleFonts.outfit(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
                     ),
-                    tooltip: 'Gallery',
-                    onPressed: () => context.push('/gallery'),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ',
+                    style: GoogleFonts.amiri(
+                      fontSize: 20,
+                      color: AppColors.primary.withAlpha(200),
+                      height: 1.8,
+                    ),
+                    textDirection: TextDirection.rtl,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Create beautiful Islamic content',
+                    style: GoogleFonts.outfit(
+                      fontSize: 13,
+                      color: AppColors.textMuted,
+                      letterSpacing: 0.3,
+                    ),
                   ),
                 ],
               ),

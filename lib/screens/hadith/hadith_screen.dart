@@ -345,19 +345,16 @@ class _HadithScreenState extends ConsumerState<HadithScreen> {
       ),
       child: Row(
         children: [
-          IconButton(
-            onPressed: () {
-              if (_level == _ScreenLevel.library) {
-                Navigator.of(context).pop();
-              } else {
-                _goBack();
-              }
-            },
-            icon: const Icon(
-              Icons.arrow_back_rounded,
-              color: AppColors.textPrimary,
-            ),
-          ),
+          if (_level != _ScreenLevel.library)
+            IconButton(
+              onPressed: _goBack,
+              icon: const Icon(
+                Icons.arrow_back_rounded,
+                color: AppColors.textPrimary,
+              ),
+            )
+          else
+            const SizedBox(width: 8),
           const SizedBox(width: 4),
           if (_currentBook != null && _level != _ScreenLevel.library)
             Container(
