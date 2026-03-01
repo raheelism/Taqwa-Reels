@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -134,14 +135,20 @@ class _SplashScreenState extends State<SplashScreen>
 
   /// Initialize all app services (runs DURING splash animation)
   static Future<void> _initServices() async {
+    await Hive.initFlutter();
+    if (!Hive.isAdapterRegistered(0)) {
+      Hive.registerAdapter(GeneratedVideoAdapter());
+    }
+
     await Hive.openBox<GeneratedVideo>('videos');
     await Future.wait([
       FavoritesService.init(),
       RecentBackgroundsService.init(),
       StatsService.init(),
       BookmarkService.init(),
-      NotificationService.init(),
     ]);
+
+    unawaited(NotificationService.init());
   }
 
   @override
